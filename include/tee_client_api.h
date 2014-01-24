@@ -20,123 +20,104 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * 
- * Header file for trustzone API
+ * Header file for TEE Client API
  */
+#ifndef __TEE_CLIENT_API_H_
+#define __TEE_CLIENT_API_H_
 
-#ifndef __TEE_API_H_
-#define __TEE_API_H_
-
-#define TYPE_UINT_DEFINED 1
-
-typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;
-
-#ifndef _STDINT_H
-typedef char uint8_t;
-#endif
-
-#define MAX_MEMBLOCKS_PER_OPERATION 4
+#include <tee_client_api_imp.h>
+#include <stdint.h>
+#include <stddef.h>
 
 /**
-* @brief Error codes
-*
-*/
-enum tee_error_codes {
-/*!The operation succeeded. */
-    TEE_SUCCESS = 0x0,
-/*!The asynchronous operation is still pending. */
-    TEE_PENDING ,
-/*!Access has been denied, or the item cannot be found.*/
-    TEE_ERROR_ACCESS_DENIED ,
-/*!The system is busy.*/
-    TEE_ERROR_BUSY ,
-/*!The execution was cancelled.*/
-    TEE_ERROR_CANCEL ,
-/*!There is a system communication error.*/
-    TEE_ERROR_COMMUNICATION ,
-/*!The decoder ran out of data.*/
-    TEE_ERROR_DECODE_NO_DATA ,
-/*!The decoder hit a type error.*/
-    TEE_ERROR_DECODE_TYPE ,
-/*!The encoded data is of a bad format.*/
-    TEE_ERROR_ENCODE_FORMAT ,
-/*!The encoder ran out of memory.*/
-    TEE_ERROR_ENCODE_MEMORY ,
-/*!An unspecified error has occurred.*/
-    TEE_ERROR_GENERIC ,
-/*!A bad parameter has been specified.*/
-    TEE_ERROR_ILLEGAL_ARGUMENT ,
-/*!A state machine has been violated.*/
-    TEE_ERROR_ILLEGAL_STATE ,
-/*!There is not enough memory to perform the operation.*/
-    TEE_ERROR_MEMORY ,
-/*!The functionality is not implemented.*/
-    TEE_ERROR_NOT_IMPLEMENTED ,
-/*!There is a security error.*/
-    TEE_ERROR_SECURITY ,
-/*!The service has returned an error in the service return code.*/
-    TEE_ERROR_SERVICE ,
-/*!The input buffer is not long enough.*/
-    TEE_ERROR_SHORT_BUFFER ,
-/*!The implementation has reached an UNDEFINED condition.*/
-    TEE_ERROR_UNDEFINED
-};
+ * @brief This type is used to contain return codes which are the results of invoking TEE Client API
+ * functions
+ */
+enum TEEC_Result {
+/*!The operation succeeded. \n*/
+    TEEC_SUCCESS = 0x0,
+/*!Non-specific cause.*/
+    TEEC_ERROR_GENERIC = 0xFFFF0000,
+/*!Access privileges are not sufficient.*/
+    TEEC_ERROR_ACCESS_DENIED = 0xFFFF0001 ,
+/*!The operation was cancelled.*/
+    TEEC_ERROR_CANCEL = 0xFFFF0002 ,
+/*!Concurrent accesses caused conflict.*/
+    TEEC_ERROR_ACCESS_CONFLICT = 0xFFFF0003 ,
+/*!Too much data for the requested operation was passed.*/
+    TEEC_ERROR_EXCESS_DATA = 0xFFFF0004 ,
+/*!Input data was of invalid format.*/
+    TEEC_ERROR_BAD_FORMAT = 0xFFFF0005 ,
+/*!Input parameters were invalid.*/
+    TEEC_ERROR_BAD_PARAMETERS = 0xFFFF0006 ,
+/*!Operation is not valid in the current state.*/
+    TEEC_ERROR_BAD_STATE = 0xFFFF0007,
+/*!The requested data item is not found.*/
+    TEEC_ERROR_ITEM_NOT_FOUND = 0xFFFF0008,
+/*!The requested operation should exist but is not yet implemented.*/
+    TEEC_ERROR_NOT_IMPLEMENTED = 0xFFFF0009,
+/*!The requested operation is valid but is not supported in this
+* Implementation.*/
+    TEEC_ERROR_NOT_SUPPORTED = 0xFFFF000A,
+/*!Expected data was missing.*/
+    TEEC_ERROR_NO_DATA = 0xFFFF000B,
+/*!System ran out of resources.*/
+    TEEC_ERROR_OUT_OF_MEMORY = 0xFFFF000C,
+/*!The system is busy working on something else. */
+    TEEC_ERROR_BUSY = 0xFFFF000D,
+/*!Communication with a remote party failed.*/
+    TEEC_ERROR_COMMUNICATION = 0xFFFF000E,
+/*!A security fault was detected.*/
+    TEEC_ERROR_SECURITY = 0xFFFF000F,
+/*!The supplied buffer is too short for the generated output.*/
+    TEEC_ERROR_SHORT_BUFFER = 0xFFFF0010,
+/*! The MAC value supplied is different from the one calculated */
+    TEEC_ERROR_MAC_INVALID = 0xFFFF3071,
+ };
+
+typedef uint32_t TEE_Result;
+typedef TEE_Result TEEC_Result;
 
 /**
-* @brief State machine constants
+* @brief Return code origin
+*
 *
 */
-enum tee_state_machine_state_const {
-/*! Structures in the UNDEFINED state may have any value for their state 
-* constant; it may not exist as an explicit value.Clients should never make
-* use of this constant, although an implementation
-* may use it internally for debugging purposes.
-*/
-    TEE_STATE_UNDEFINED = 0x0,
-/*! The state is in a safe invalid state. */
-    TEE_STATE_INVALID ,
-/*! The state is open.*/
-    TEE_STATE_OPEN ,
-/*! The state is closing, but not yet closed.*/
-    TEE_STATE_CLOSING ,
-/*! The state an operation that is not running and 
-* can accept data to be encoded.
-*/
-    TEE_STATE_ENCODE ,
-/*! The state of an operation that is not running, but which cannot accept 
-* data to be encoded. This state applies only to close operations.
-*/
-    TEE_STATE_PERFORMABLE ,
-/*! The state of an operation that is executing synchronously.*/
-    TEE_STATE_RUNNING ,
-/*! The state of an operation that is executing asynchronously.*/
-    TEE_STATE_RUNNING_ASYNC ,
-/*! The state of an operation that can have data read using the 
-* decoder functions.
-*/
-    TEE_STATE_DECODE
+enum TEEC_return_code_origin {
+/*! The return code is an error that originated within the TEE Client API
+* implementation. */
+    TEEC_ORIGIN_API = 0x1,
+/*! The return code is an error that originated within the underlying
+* communications stack linking the rich OS with the TEE. */
+    TEEC_ORIGIN_COMMS = 0x2,
+/*! The return code is an error that originated within the common TEE code. */
+    TEEC_ORIGIN_TEE = 0x3,
+/*! The return code is an error that originated within the Trusted application
+* code. This includes the case where the return code is a success. */
+    TEEC_ORIGIN_TRUSTED_APP = 0x4,
 };
+
 
 /**
 * @brief Login flag constants
 *
 *
 */
-enum tee_login_flags {
+enum TEEC_login_flags {
 /*! No login is to be used.*/
-    TEE_LOGIN_PUBLIC = 0x0,
-/*! A buffer of client data is to be provided.*/
-    TEE_LOGIN_CLIENT_DATA ,
+    TEEC_LOGIN_PUBLIC = 0x0,
 /*! The user executing the application is provided.*/
-    TEE_LOGIN_USER ,
+    TEEC_LOGIN_USER ,
 /*! The user group executing the application is provided.*/
-    TEE_LOGIN_GROUP ,
-/*! The name of the application is provided; may include path.*/
-    TEE_LOGIN_NAME ,
-/*! The digest of the client application is provided.*/
-    TEE_LOGIN_DIGEST ,
-/*! A utility constant indicating all available login types should be used.*/
-    TEE_LOGIN_ALL
+    TEEC_LOGIN_GROUP ,
+/*! Login data about the running Client Application itself is provided. */
+    TEEC_LOGIN_APPLICATION = 0x4 ,
+/*! Login data about the user running the Client Application and about the
+* Client Application itself is provided. */
+    TEEC_LOGIN_USER_APPLICATION = 0x5 ,
+/*! Login data about the group running the Client Application and about the
+* Client Application itself is provided. */
+    TEEC_LOGIN_GROUP_APPLICATION = 0x6 ,
 };
 
 /**
@@ -144,1245 +125,939 @@ enum tee_login_flags {
 *
 *
 */
-enum tee_shared_mem_flags {
-/*! Service can only read from the memory block.*/
-    TEE_MEM_SERVICE_RO = 0x0,
-/*! Service can only write from the memory block.*/
-    TEE_MEM_SERVICE_WO ,
-/*! Service can read and write from the memory block.*/
-    TEE_MEM_SERVICE_RW,
-/*! Invalid flag */
-    TEE_MEM_SERVICE_UNDEFINED
-};
-
-/**
-* @brief Operation type constants
-*
-*/
-enum tee_type_of_operation {
-/*! Open operation */
-    TEE_OPERATION_OPEN = 0x0,
-/*! Invoke operation */
-    TEE_OPERATION_INVOKE ,
-/*! Close operation */
-    TEE_OPERATION_CLOSE ,
-/*! No operation will be performed */
-    TEE_OPERATION_NONE
+enum TEEC_shared_mem_flags {
+/*! The Shared Memory can carry data from the Client Application
+* to the Trusted Application. */
+    TEEC_MEM_INPUT = 0x1,
+/*! The Shared Memory can carry data from the Trusted Application
+* to the Client Application. */
+    TEEC_MEM_OUTPUT = 0x2,
 };
 
 /**
 * @brief Param type constants
 *
 */
-enum tee_param_type {
-/*! In parameter for read operations. */
-    TEE_PARAM_IN = 0x0,
-/*! Out parameter for write operations. */
-    TEE_PARAM_OUT
-};
+enum TEEC_param_type {
+/*! The Parameter is not used. */
+    TEEC_NONE = 0x1,
+/*! The Parameter is a TEEC_Value tagged as input. */
+    TEEC_VALUE_INPUT,
+/*! The Parameter is a TEEC_Value tagged as output. */
+    TEEC_VALUE_OUTPUT,
+/*! The Parameter is a TEEC_Value tagged as both as input and output,
+* i.e., for which both the behaviors of TEEC_VALUE_INPUT and
+* TEEC_VALUE_OUTPUT apply. */
+    TEEC_VALUE_INOUT,
+/*! The Parameter is a TEEC_TempMemoryReference describing a region of memory
+* which needs to be temporarily registered for the duration of the Operation
+and is tagged as input. */
+    TEEC_MEMREF_TEMP_INPUT,
+/*! Same as TEEC_MEMREF_TEMP_INPUT, but the Memory Reference is tagged as
+* output. The Implementation may update the size field to reflect the
+* required output size in some use cases. */
+    TEEC_MEMREF_TEMP_OUTPUT,
+/*! A Temporary Memory Reference tagged as both input and output,
+* i.e., for which both the behaviors of TEEC_MEMREF_TEMP_INPUT and
+* TEEC_MEMREF_TEMP_OUTPUT apply. */
+    TEEC_MEMREF_TEMP_INOUT,
+/*! The Parameter is a Registered Memory Reference that refers to the
+* entirety of its parent Shared Memory block. The parameter structure is a
+* TEEC_MemoryReference. In this structure, the Implementation MUST read
+* only the parent field and MAY update the size field when the
+* operation completes. */
+    TEEC_MEMREF_WHOLE = 0xc,
 
-/**
-* @brief Decode type constants
-*
+/*! A Registered Memory Reference structure that refers to a partial region
+* of its parent Shared Memory block and is tagged as input.
 */
-enum tee_decode_type {
-/*! There is no more data in the decode stream. */
-    TEE_TYPE_NONE = 0x0,
-/*! The next data type in the stream is a uint32_t. */
-    TEE_TYPE_UINT32,
-/*! The next data type in the stream is an array. */
-    TEE_TYPE_ARRAY
+    TEEC_MEMREF_PARTIAL_INPUT = 0xd,
+
+/*! A Registered Memory Reference structure that refers to a partial region
+* of its parent Shared Memory block and is tagged as output.
+*/
+    TEEC_MEMREF_PARTIAL_OUTPUT = 0xe,
+
+/*! A Registered Memory Reference structure that refers to a partial region
+* of its parent Shared Memory block and is tagged as both input and output.
+*/
+    TEEC_MEMREF_PARTIAL_INOUT = 0xf
 };
 
-typedef uint32_t tee_return_t;
-typedef uint32_t tee_state_t;
-
-/* Trust zone client API */
+/**
+ * @brief
+ */
+typedef struct TEEC_Operation TEEC_Operation;
+/**
+ * @brief 
+ */
+typedef struct TEEC_Session TEEC_Session;
 
 /**
-* @brief Universally Unique IDentifier (UUID) type as defined in 
+ * @brief 
+ */
+typedef struct TEEC_SharedMemory TEEC_SharedMemory;
+/**
+ * @brief 
+ */
+typedef struct TEEC_TempMemoryReference TEEC_TempMemoryReference;
+/**
+ * @brief 
+ */
+typedef struct TEEC_RegisteredMemoryReference TEEC_RegisteredMemoryReference;
+/**
+ * @brief 
+ */
+typedef struct TEEC_Value TEEC_Value;
+
+
+#if 0
+/**
+* @brief Universally Unique IDentifier (UUID) type as defined in
 * [RFC4122].A
 *
 * UUID is the mechanism by which a service is identified.
 */
-typedef struct tee_uuid_t
+typedef struct
 {
-    uint32_t ui_time_low;
-    uint32_t ui_time_mid;
-    uint16_t ui_time_hi_and_version;
-    uint8_t  aui_clock_seq_and_node[8];
-}tee_uuid_t;
+    uint32_t timeLow;
+    uint16_t timeMid;
+    uint16_t timeHiAndVersion;
+    uint8_t clockSeqAndNode[8];
+} TEEC_UUID;
+#endif
+
+typedef uint32_t TEEC_UUID;
 
 /**
-* @brief Login credentials to be provided to the service
+* @brief The TEEC_Context structure is used to contain control information
+* related to the TEE
 *
 */
-typedef struct tee_login_t
+typedef struct TEEC_Context
 {
-/*! Bit field specifying which login credentials must 
-* be provided to the service. This must be one of the following options:\n
-* TEE_LOGIN_PUBLIC: no credentials are provided.\n
-* OR\n
-* One or more of the following flags:\n
-* TEE_LOGIN_CLIENT_DATA: supply the client buffer specified by pBuff and
-*  uiBuffLen.\n
-* TEE_LOGIN_USER: supply the identity of the “user” executing the
-* client.\n
-* TEE_LOGIN_GROUP: supply the identity of the “group” executing the
-* client.\n
-* TEE_LOGIN_NAME: supply the “name” of the client executable. This may
-* include path information to strengthen the differentiation between
-* executables with the same name.\n
-* TEE_LOGIN_DIGEST: supply the cryptographic “digest” of the currently
-* running client process to the service. This enables the service to 
-* compare the digest with a known good value to ensure that the client 
-* has not been tampered with. \n
-* OR \n
-* TEE_LOGIN_ALL: A utility constant which indicates that all of the available
-* login flags have been specified.
-*/
-    uint32_t ui_type; 
-
-/*! Buffer of login information sent to the service when the
-* TEE_LOGIN_CLIENT_DATA login flag is specified. The required content of this
-* buffer is defined by the client-service protocol defined by the service that
-* the client is attempting to connect to.
-*/
-    void*   p_buff; 
-
-/*!
-The length of the buffer in bytes. This field should be zero if
-* p_buff is NULL.
-*/
-    uint32_t ui_buff_len;
-}tee_login_t;
+/*! Implementation-defined variables */
+	TEEC_IMP_Context imp;
+}TEEC_Context;
 
 /**
-* @brief 
-*/
-typedef struct {
-	uint32_t objectType;
-	uint32_t objectSize;
-	uint32_t maxObjectSize;
-	uint32_t objectUsage;
-	uint32_t dataSize;
-	uint32_t dataPosition;
-	uint32_t handleFlags;
-} TEE_ObjectInfo;
-
-/**
- * @brief 
- */
-typedef struct {
-	uint32_t attributeID;
-	union {
-	struct {
-	void* buffer; size_t length;
-	} ref;
-	struct
-	{
-	uint32_t a, b;
-	} value;
-	} content;
-} TEE_Attribute;
-
-
-/**
- *
- * @brief opaque structure definition for an object handle.
- *        TODO - Fill it with something appropriate
- */
-struct __TEE_ObjectHandle {
-	void* dataPtr;
-	uint32_t dataLen;
-	uint8_t dataName[255];
-	TEE_ObjectInfo *ObjectInfo;
-	TEE_Attribute *Attribute;
-	uint32_t attributesLen;
-
-};
-typedef struct __TEE_ObjectHandle TEE_ObjectHandle;
-/**
-* @brief Name value pairs
-*
-*/
-typedef struct tee_property_t
-{
-/*! The numeric namespace of properties. */
-    uint32_t ui_namespace;
-/*! The numeric name of the property. */
-    uint32_t ui_name;
-/*! A binary buffer of containing the property value. The content of this
-* buffer is defined by the specification of the property that is loaded.
-*/
-    void*    p_value;
-/*! The length of the binary buffer in bytes, or zero if pValue is NULL */
-    uint32_t ui_length;
-}tee_property_t;
-
-/* Lists the functions exposed to the client by the system or service */
-/**
-* @brief Service property 
-*
-*/
-
-typedef struct tee_property_name_t
-{
-/*! The numeric namespace of properties. */
-    uint32_t ui_namespace;
-/*! The numeric name of the property. */
-    uint32_t ui_name;
-}tee_property_name_t;
-
-/**
-* @brief Absolute time since an arbitary origin.
-*
-*
-*/
-typedef struct tee_timelimit_t
-{
-    /*Implementation Defined */
-}tee_timelimit_t;
-
-/**
- * @brief 
- */
-typedef struct tee_operation_t tee_operation_t;
-/**
- * @brief 
- */
-typedef struct tee_session_t tee_session_t;
-/**
- * @brief 
- */
-typedef struct tee_device_t tee_device_t;
-/**
- * @brief 
- */
-typedef struct tee_shared_mem_t tee_shared_mem_t;
-
-/**
-* @brief Encoder and decoder state
-*
-*/
-struct tee_enc_dec_t
-{
-    int cmd_id;             /*!< Command id */
-    int encode_id;          /*!< Identifier for encode or decode operations */
-    int enc_error_state;    /*!< Error value of last encoded operation */
-    int dec_error_state;    /*!< Error value of last decoded operation */
-};
-
-/**
-* @brief Shared memory reference 
-*
-*/
-struct tee_mem_reference
-{
-/*! Shared memory context */
-    void            *shared_mem;
-/*! Offset from the allocated Shared memory for reference */
-    uint32_t        offset;
-/*! Shared memory reference length */
-    uint32_t        length;
-/*! In or out parameter */
-    int             param_type;
-};
-
-/**
-* @brief The tee_operation_t structure is used to contain control information
-* related to an operation that is to be invoked with the security environment.
-*
-*/
-struct tee_operation_t
-{
-/*! State of the operation */
-    tee_state_t ui_state;
-/*! Session context*/
-    tee_session_t* session;
-/*! Type of operation*/
-    uint32_t type;
-/*! Session id for the operation*/
-    int session_id;
-/*! Encoder and decoder state*/    
-    struct tee_enc_dec_t enc_dec;
-/*! Shared memory referred during this operation*/    
-    struct tee_mem_reference shared_mem[MAX_MEMBLOCKS_PER_OPERATION];
-/*! Shared memory referred count*/
-    int shared_mem_ref_count;
-/*! Temporary shared memory referred during this operation*/
-    struct tee_mem_reference temp_mem[MAX_MEMBLOCKS_PER_OPERATION];
-/*! Temporary shared memory referred count*/
-    int temp_mem_ref_count;
-/*! Error number from the client driver*/
-    int s_errno;
-/*! Implementation defined structure */
-    struct {
-    /* Implementation Defined */
-    }s_imp;
-
-};
-
-/**
-* @brief The tee_session_t structure is used to contain control information
+* @brief The TEEC_Session structure is used to contain control information
 * related to a session between a client and a service.
 *
 */
-struct tee_session_t
+struct TEEC_Session
 {
-/*! State of the session */
-    tee_state_t ui_state;
+/*! Implementation-defined variables */
 /*! Reference count of operations*/
-    int operation_count;
+    int operation_cnt;
 /*! Session id obtained for the  service*/
     int session_id;
 /*! Unique service id */
     int service_id;
-/*! Shared memory counter which got created for this session */
-    uint32_t shared_mem_cnt;    
 /*! Device context */
-    tee_device_t* device;
-/*! Shared memory list */
-    struct list shared_mem_list;
-/*! Implementation defined structure */
-    struct 
-    {
-    /* Implementation Defined */
-    }s_imp;
-
-};
-
-/**
-* @brief The tee_device_t structure is used to contain control information
-* related to the device
-*
-*/
-struct tee_device_t
-{ 
-/*! State of the device */
-    tee_state_t ui_state;
-/*! Device identifier */
-    uint32_t fd;
-/*! Sessions count of the device*/
-    int session_count;
-/*! Error number from the client driver*/
+    TEEC_Context* device;
+/*! Service error number */
     int s_errno;
-/*! Implementation defined */
-    struct {
-    /* Implementation Defined*/
-    }s_imp;
 };
 
+
 /**
-* @brief The tee_shared_memory_t structure is used to contain control information
+* @brief The TEEC_SharedMemory structure is used to contain control information
 * related to a block of shared memory that is mapped between the client and the
 * service.
 *
 */
 
-struct tee_shared_mem_t
+struct TEEC_SharedMemory
 {
-/*! he state of this structure. For shared memory only the following
-* states are used: \n
-*   TEE_STATE_INVALID: Shared memory block is not valid, but in a known state
-*   which can be freed. \n
-*   TEE_STATE_OPEN: Shared memory block is valid and references to it can be
-* encoded in structured messages.\n
-*   TEE_STATE_UNDEFINED: Pseudo state covering all other behavior. A structure in
-* this state must not be used unless explicitly specified, otherwise UNDEFINED
-* behavior may occur 
-*/
-    tee_state_t ui_state;
-/*! The length of the shared memory block in bytes. Should not be zero */
-    uint32_t ui_length;
-/*! The sharing flags of the shared memory block, indicating direction of
-* data sharing. \n
-* Note that these access flags cannot usually be enforced by the hardware. If a
-* client or a service ignores the flags specified for a shared memory block, or
-* a corresponding memory reference, UNDEFINED behavior results. \n
-*  Exactly one of the following flags must be specified:\n
-*  TEE_MEM_SERVICE_RO: The service can only read from the memory block.\n
-*  TEE_MEM_SERVICE_WO: The service can only write to the memory block.\n
-*  TEE_MEM_SERVICE_RW: The service can both read from and write to the memory
-*  block.
-*/
-    uint32_t ui_flags;
 /*! The pointer to the block of shared memory. */
-    void*   p_block;
-/*! Session context */
-    tee_session_t* session;
-/*! Session identifier */
-    int session_id;
+    void*   buffer;
+
+/*! The length of the shared memory block in bytes. Should not be zero */
+    size_t size;
+
+/*! flags is a bit-vector which can contain the following flags:\n
+*  TEEC_MEM_INPUT: the memory can be used to transfer data from the
+*  Client Application to the TEE. \n
+*  TEEC_MEM_OUTPUT: The memory can be used to transfer data from the
+*  TEE to the Client Application. \n
+*  All other bits in this field SHOULD be set to zero, and are reserved for
+*  future use.
+*/
+    uint32_t flags;
+
+/*! Implementation defined fields. */
+
+/*! Device context */
+    TEEC_Context* context;
 /*! Operation count */
     int operation_count;
+/*! Shared memory type */
+    uint32_t allocated;
+/*! List head used by Context */
+    struct list_head head_ref;
 /*! Service error number */
     int s_errno;
-/*! List head used by Session */
-    struct list head_ref;
-/*! Implementation defined structure */
-    struct {
-    /* Implementation defined */
-    }s_imp;
-
 };
 
 
+/**
+* @brief Small raw data value type
+*
+* This type defines a parameter that is not referencing shared memory,
+* but carries instead small raw data passed by value.
+* It is used as a TEEC_Operation parameter when the corresponding
+* parameter type is one of
+* TEEC_VALUE_INPUT, TEEC_VALUE_OUTPUT, or TEEC_VALUE_INOUT.
+*/
+struct TEEC_Value
+{
+/*! The two fields of this structure do not have a particular meaning.
+* It is up to the protocol between the Client Application and
+* the Trusted Application to assign a semantic to those two integers.
+*/
+   uint32_t a;
+   uint32_t b;
+};
+
 
 /**
-* @brief Open the device
+* @brief Temporary shared memory reference
 *
-* This function opens a connection with the device in the underlying operating
-* environment that represents the secure environment. When the client no longer
-* requires the device it must call tee_device_close to close the connection and
-* free any associated resources. This function accepts a pointer to a
-* tee_device_t structure assumed to be in the TEE_STATE_UNDEFINED state. On
-* success this function must set the device structure *ps_device to the state
-* TEE_STATE_OPEN with a session count of zero. On failure, the device is set to
-* the state TEE_STATE_INVALID. It is possible to create multiple concurrent
-* device connections from a single client. The number of devices that can be
-* supported globally within the entire system, or locally within a single
-* client, is implementation-defined.
-* 
-* Undefined Behavior:
-*  The following situations result in UNDEFINED behavior: \n
-*  Calling with device set to NULL. \n
+*/
+struct TEEC_TempMemoryReference
+{
+/*! "buffer" is a pointer to the first byte of a region of memory which needs \n
+* to be temporarily registered for the duration of the Operation. \n
+* This field can be NULL to specify a null Memory Reference. */
+    void            *buffer;
+/*! Size of the referenced memory region. When the operation completes, and \n
+*   unless the parameter type is TEEC_MEMREF_TEMP_INPUT, \n
+*   the Implementation must update this field to reflect the actual or \n
+*   required size of the output: \n
+*   If the Trusted Application has actually written some data in the
+*   output buffer, then the Implementation MUST update the size field with
+*   the actual number of bytes written.\n\n
+*   If the output buffer was not large enough to contain the whole output,
+*   or if it is null, the Implementation MUST update the size field with
+*   the size of the output buffer requested by the Trusted Application.
+*   In this case, no data has been written into the output buffer
+*/
+    size_t        size;
+};
+
+/**
+* @brief Registered memory reference
 *
-* @param pk_device_name: An implementation-defined binary buffer, used to
-* identify the underlying device to connect to. If this is NULL, the
-* implementation will use an internally defined default device name.
-* 
-* @param pk_init: An implementation-defined binary block used to configure the
-* implementation. If this is NULL, the implementation will use predefined
-* default values for the library configuration
+* A pre-registered or pre-allocated Shared Memory block.
+* It is used as a TEEC_Operation parameter when the corresponding
+* parameter type is one of TEEC_MEMREF_WHOLE,
+* TEEC_MEMREF_PARTIAL_INPUT, TEEC_MEMREF_PARTIAL_OUTPUT, or
+* TEEC_MEMREF_PARTIAL_INOUT.
+*/
+struct TEEC_RegisteredMemoryReference
+{
+/*! Pointer to the shared memory structure. \n
+* The memory reference refers either to the whole Shared Memory or
+* to a partial region within the Shared Memory block, depending of the
+* parameter type. The data flow direction of the memory reference
+* must be consistent with the flags defined in the parent Shared Memory Block.
+* Note that the parent field MUST NOT be NULL. To encode a null
+* Memory Reference, the Client Application must use a Temporary Memory
+* Reference with the buffer field set to NULL. */
+    TEEC_SharedMemory* parent;
+
+/*! Size of the referenced memory region, in bytes. \n
+* The Implementation MUST only interpret this field if the Memory Reference
+* type in the operation structure is not TEEC_MEMREF_WHOLE. Otherwise,
+* the size is read from the parent Shared Memory structure.\n
+* When an operation completes, and if the Memory Reference is
+* tagged as “output”, the Implementation must update this field to reflect
+* the actual or required size of the output. This applies even if the
+* parameter type is TEEC_MEMREF_WHOLE:\n
+* If the Trusted Application has actually written some data in the
+* output buffer, then the Implementation MUST update the size field with the
+* actual number of bytes written.\n
+* If the output buffer was not large enough to contain the
+* whole output, the Implementation MUST update the size field with the size of
+* the output buffer requested by the Trusted Application. In this case,
+* no data has been written into the output buffer.
+*/
+    size_t        size;
+
+/*! Offset from the allocated Shared memory for reference \n
+* The Implementation MUST only interpret this field if the
+* Memory Reference type in the operation structure is not TEEC_MEMREF_WHOLE.
+* Otherwise, the Implementation MUST use the base address of the
+* Shared Memory block.
+*/
+    size_t        offset;
+};
+
+/**
+* @brief Parameter of a TEEC_Operation
 *
-* @param ps_device: A pointer to the device structure.
+* It can be a Temporary Memory Reference, a Registered Memory Reference,
+* or a Value Parameter.
+*/
+typedef union
+{
+/*! For parameter type:\n
+*   TEEC_MEMREF_TEMP_INPUT \n
+*   TEEC_MEMREF_TEMP_OUTPUT \n
+*   TEEC_MEMREF_TEMP_INOUT \n
+*/
+    TEEC_TempMemoryReference       tmpref;
+
+/*! For parameter type:\n
+*   TEEC_MEMREF_WHOLE \n
+*   TEEC_MEMREF_PARTIAL_INPUT \n
+*   TEEC_MEMREF_PARTIAL_OUTPUT \n
+*   TEEC_MEMREF_PARTIAL_INOUT \n
+*/
+    TEEC_RegisteredMemoryReference memref;
+
+/*! For parameter type:\n
+*   TEEC_VALUE_INPUT \n
+*   TEEC_VALUE_OUTPUT \n
+*   TEEC_VALUE_INOUT \n
+*/
+    TEEC_Value                     value;
+} TEEC_Parameter;
+
+/**
+* @brief The TEEC_Operation structure is used to contain control information
+* related to an operation that is to be invoked with the security environment.
 *
-* @return tee_return_t:
-* TEE_SUCCESS: The device was successfully opened. \n
-* TEE_ERROR_*: An implementation-defined error code for any other error.
+* This type defines the payload of either an open Session operation or
+* an invoke Command operation. It is also used for cancellation of operations,
+* which may be desirable even if no payload is passed.
+*/
+struct TEEC_Operation
+{
+/*!
+* This field which MUST be initialized to zero by the Client Application
+* before each use in an operation if the Client Application may need to
+* cancel the operation about to be performed.
+*/
+    uint32_t started;
+
+/*! paramTypes field encodes the type of each of the Parameters in the
+* operation. The layout of these types within a 32-bit integer is
+* implementation-defined and the Client Application MUST use the
+* macro TEEC_PARAMS_TYPE to construct a constant value for this field.
+* As a special case, if the Client Application sets paramTypes to 0,
+* then the Implementation MUST interpret it as meaning that the type for each
+* Parameter is set to TEEC_NONE.\n
+* The type of each Parameter can take one of the following values\n
+* TEEC_NONE\n
+* TEEC_VALUE_INPUT\n
+* TEEC_VALUE_OUTPUT\n
+* TEEC_VALUE_INOUT\n
+* TEEC_MEMREF_TEMP_INPUT\n
+* TEEC_MEMREF_TEMP_OUTPUT\n
+* TEEC_MEMREF_TEMP_INOUT\n
+* TEEC_MEMREF_WHOLE\n
+* TEEC_MEMREF_PARTIAL_INPUT\n
+* TEEC_MEMREF_PARTIAL_OUTPUT\n
+* TEEC_MEMREF_PARTIAL_INOUT\n
+*/
+    uint32_t paramTypes;
+
+/*! params is an array of four Parameters. For each parameter, one of the
+* memref, tmpref, or value fields must be used depending on the corresponding
+* parameter type passed in paramTypes as described in the specification
+* of TEEC_Parameter
+*/
+    TEEC_Parameter params[4];
+};
+
+
+/**
+* @brief Shared memory flag constants
 *
 *
 */
-tee_return_t tee_device_open(void const* pk_device_name, void const* pk_init,
-                            tee_device_t* ps_device);
+enum otz_shared_mem_flags {
+/*! Service can only read from the memory block.*/
+    OTZ_MEM_SERVICE_RO = 0x0,
+/*! Service can only write from the memory block.*/
+    OTZ_MEM_SERVICE_WO ,
+/*! Service can read and write from the memory block.*/
+    OTZ_MEM_SERVICE_RW,
+/*! Invalid flag */
+    OTZ_MEM_SERVICE_UNDEFINED
+};
+
 
 /**
-* @brief Get local time limit
+* @brief Initialize Context
 *
-* Calling this function generates a device-local absolute time limit in the
-* structure pointed to by ps_time_limit  from a timeout value ui_timeout. 
-* The absolute time limit is equal to the  current time plus 
-* the specified timeout.
-* 
-* Undefined Behavior:
-* The following situations result in UNDEFINED behavior: \n
-*      Calling with device set to NULL.\n
-*      Calling with device pointing to a device in the state TEE_STATE_INVALID.\n
-*      Calling with time_limit set to NULL. \n
-*      Use of the time limit outside of the device in which it was created.\n
-* @param ps_device: A pointer to the device
-* @param ui_timeout: The required relative timeout, in milliseconds.
-* @param ps_timelimit: A pointer to the time limit structure to populate.
+* This function initializes a new TEE Context, forming a connection between
+* this Client Application and the TEE identified by the string identifier
+* name.\n
+* The Client Application MAY pass a NULL name, which means that the
+* Implementation MUST select a default TEE to connect to.
+* The supported name strings, the mapping of these names to a specific TEE,
+* and the nature of the default TEE are implementation-defined.\n
+* The caller MUST pass a pointer to a valid TEEC Context in context.
+* The Implementation MUST assume that all fields of the TEEC_Context structure
+* are in an undefined state.\n
 *
-* @return 
-* TEE_SUCCESS: the time limit was created successfully.\n
-* TEE_ERROR_*: an implementation-defined error code for any other error.
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error: \n
+* Attempting to initialize the same TEE Context structure concurrently
+* from multiple threads. Multi-threaded Client Applications must use
+* platform-provided locking mechanisms to ensure that this case
+* does not occur. \n \n
+* \b Implementers’ \b Notes \n
+* It is valid Client Application behavior to concurrently initialize
+* different TEE Contexts, so the Implementation MUST support this.
 *
-*/
-tee_return_t tee_device_get_timelimit(tee_device_t* ps_device,
-                                    uint32_t ui_timeout,
-                                    tee_timelimit_t* ps_timelimit);
-
-/**
-* @brief Prepare open operation
+* @param name: A zero-terminated string that describes the TEE to connect to.
+* If this parameter is set to NULL the Implementation MUST select a default TEE.
 *
-* This function is responsible for locally preparing an operation that can be
-* used to connect with the service  defined by the UUID 
-* pointed to by pks_service, using the timeout pointed to by
-* pks_time_limit and the login credentials specified in pks_login.\n
+* @param context: A TEEC_Context structure that MUST be initialized by the
+* Implementation.
 *
-* This function accepts a session and an operation structure assumed to be in
-* the state TEE_STATE_UNDEFINED.\n
-* 
-* When this function returns TEE_SUCCESS it must increment the session count of
-* the device. The count may subsequently need to be decremented by the 
-* tee_operation_release function –  releasing this operation if the
-* corresponding perform operation failed or was never executed.\n
-*
-* When this function returns TEE_SUCCESS the operation is set to the state
-* TEE_STATE_ENCODE; this state allows the client to encode a
-* message to be exchanged with the service using the encoder 
-* functions of the TEE_API. Once the message has been encoded
-* the client must call the function tee_operation_perform, or the
-* asynchronous equivalent, to issue the open session command to the security
-* environment.\n
-*
-* When this function returns TEE_SUCCESS the session must be in the state
-* TEE_STATE_INVALID. The state transitions to TEE_STATE_OPEN after the perform
-* function related to the open  session operation has returned
-* * TEE_SUCCESS; only at this point does the session become usable. If the perform
-* function returns any error code,
-* the session is not opened and remains in the state TEE_STATE_INVALID.\n
-*
-* When this function fails it can return any error code. In these conditions,
-* the state of the device must be  unchanged, 
-* including the session count. The state of the session is TEE_STATE_UNDEFINED
-* and the operation  must be set to TEE_STATE_INVALID.\n
-*
-* Note that if the perform function fails, the client must still call
-* tee_operation_release to release resources
-* associated with the operation. \n
-*
-* Undefined Behavior:\n
-* The following situations result in UNDEFINED behavior:\n
-*     Calling with device set to NULL.\n
-*     Calling with device pointing to a device in the state TEE_STATE_INVALID.\n
-*     Calling with service set to NULL.\n
-*     Calling with session set to NULL.\n
-*     Calling with operation set to NULL.\n
-*
-* @param ps_device: A pointer to the device.
-* @param pks_service: A pointer to the service UUID.
-* @param pks_login: A pointer to the login control structure, or NULL.
-* @param pks_timelimit: A pointer to the time limit, or NULL.
-* @param ps_session: A pointer to the session.
-* @param ps_operation: A pointer to the operation.
-*
-* @return 
-* TEE_SUCCESS: The operation has been prepared successfully.\n
-* TEE_ERROR_*: An implementation-defined error code for any other error.\n
+* @return TEEC_Result:
+* TEEC_SUCCESS: The initialization was successful. \n
+* TEEC_ERROR_*: An implementation-defined error code for any other error.
 *
 *
 */
-tee_return_t tee_operation_prepare_open(tee_device_t* ps_device,
-/*                                      tee_uuid_t const* pks_service, */
-                                      int pks_service,
-                                      tee_login_t const* pks_login,
-                                      tee_timelimit_t const* pks_timelimit,
-                                      tee_session_t* ps_session,
-                                      tee_operation_t* ps_operation );
+TEEC_Result TEEC_InitializeContext(
+    const char*   name,
+    TEEC_Context* context);
+
+
 
 /**
-* @brief Prepare operation for service request
+* @brief Finalizes an initialized TEE context.
 *
-* This function is responsible for locally preparing an operation that can be
-* used to issue a command to a service  with which the client has 
-* already created a session.
+* This function finalizes an initialized TEE Context,
+* closing the connection between the Client Application and the TEE.
+* The Client Application MUST only call this function when all Sessions
+* inside this TEE Context have been closed and all
+* Shared Memory blocks have been released. \n
+* The implementation of this function MUST NOT be able to fail:
+* after this function returns the Client Application must be able to
+* consider that the Context has been closed.\n
+* The function implementation MUST do nothing if context is NULL.
 *
-* This function accepts an operation assumed to be in the state
-* TEE_STATE_UNDEFINED.
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a context which still has sessions opened.\n
+*       Calling with a context which contains unreleased Shared Memory blocks.\n
+*       Attempting to finalize the same TEE Context structure concurrently
+* from multiple threads.\n
+*       Attempting to finalize the same TEE Context structure more than once,
+* without an intervening call to TEEC_InitalizeContext.
 *
-* When this function returns TEE_SUCCESS the operation is set to the state
-* TEE_STATE_ENCODE; this state allows
-* the client to encode a message to be exchanged with the service using the
-* encoder functions of the TEE_API.  Once the message has been encoded the client
-* must call the function  tee_operation_perform, or the asynchronous equivalent,
-* to issue the command to the service.
-*
-* When this function fails it can return any error code. In these conditions the
-* state of the session must be unchanged, 
-* including the operation count. The state the operation must be set
-* to the state TEE_STATE_INVALID.
-*
-* The pks_time_limit parameter defines the absolute time by which the operation
-* must be complete, after which the implementation should attempt to cancel it. 
-* This parameter may be NULL which implies no timeout it used.
-*
-* Note that if the perform function fails the client must still call
-* tee_operation_release to release resources associated with the operation.\n
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*    Calling with session set to NULL.\n
-*    Calling with session pointing to a session in a state other than 
-*    TEE_STATE_OPEN.\n
-*    Calling with operation set to NULL.\n
-*
-* @param ps_session: A pointer to the open session.
-* @param ui_command: The identifier of the command to execute, defined by the
-* client-service protocol.
-* @param pks_timelimit: A pointer to the time limit, or NULL.
-* @param ps_operation: A pointer to the operation.
-*
-* @return
-* TEE_SUCCESS: The operation has been prepared successfully.\n
-* TEE_ERROR_*: An implementation-defined error code for any other error.\n
+* @param context: An initialized TEEC_Context structure which is to be
+* finalized.
 *
 */
-tee_return_t tee_operation_prepare_invoke(tee_session_t* ps_session,
-                                        uint32_t ui_command,
-                                        tee_timelimit_t const* pks_timelimit,
-                                        tee_operation_t* ps_operation);
+void TEEC_FinalizeContext(
+    TEEC_Context* context);
 
 /**
-* @brief Performs the previously prepared operation
+* @brief Register a allocated shared memory block.
 *
-* This function performs a previously prepared operation – issuing it to the
-* secure environment.\n
-* There are three kinds of operations that can be issued: opening a client
-* session, invoking a service command,
-* and closing a client session. Each type of operation is prepared with its
-* respective function, which returns the
-* operation structure to be used:\n
-*    tee_operation_prepare_open prepares an open session operation.\n
-*    tee_operation_prepare_invoke prepares an invoke service command operation.\n
-*    tee_operation_prepare_close prepares a close session operation.\n
-* 
-* When calling this function, the operation must be in the state TEE_STATE_ENCODE
-* or TEE_STATE_PERFORMABLE.\n
+* This function registers a block of existing Client Application memory as a
+* block of Shared Memory within the scope of the specified TEE Context,
+* in accordance with the parameters which have been set by the
+* Client Application inside the \a sharedMem structure.
 *
-* For operations that support a structured message it is not required that a
-* message has actually been encoded  by the client. 
-* Once this function has been called, the state transitions to
-* TEE_STATE_RUNNING and it is no longer possible to use to the
-* encoder functions on the operation.\n
+* The parameter \a context MUST point to an initialized TEE Context.
 *
-* If an error is detected by the system before the operation reaches the
-* service, then an error code is returned by tee_operation_perform and
-* the value TEE_ERROR_GENERIC is assigned to *pui_service_return.
-* In this case the operation will be in the state TEE_STATE_INVALID
-* when the function returns and the decoder functions cannot be
-* used on the operation.\n
+* The parameter \a sharedMem MUST point to the Shared Memory structure
+* defining the memory region to register.
+* The Client Application MUST have populated the following fields of the
+* Shared Memory structure before calling this function: \n
+* The \a buffer field MUST point to the memory region to be shared,
+* and MUST not be NULL.\n
+* The \a size field MUST contain the size of the buffer, in bytes.
+* Zero is a valid length for a buffer. \n
+* The \a flags field indicates the intended directions of data flow
+* between the Client Application and the TEE. \n
+* The Implementation MUST assume that all other fields in the Shared Memory
+* structure have undefined content.
 *
-* The most common causes for an error occurring before the command reaches the
-* service are:\n
-*  The encoder ran out of space – error returned is TEE_ERROR_ENCODE_MEMORY.\n
-*  The service does not exist – error returned is TEE_ERROR_ACCESS_DENIED.\n
-*  The system rejects a new session due to bad login credentials – error
-*  return is TEE_ERROR_ACCESS_DENIED.\n
-*  The operation has timed out, or been cancelled; error return is
-*  TEE_ERROR_CANCEL.\n
-*  The secure environment is busy or low on resource and cannot handle 
-*  the request.\n
+* An Implementation MAY put a hard limit on the size of a single
+* Shared Memory block, defined by the constant TEEC_CONFIG_SHAREDMEM_MAX_SIZE.
+* However note that this function may fail to register a
+* block smaller than this limit due to a low resource condition
+* encountered at run-time.
 *
-*  For open and invoke operations, if the operation reaches the service, but the
-*  service returns an error, then tee_operation_perform
-*  returns TEE_ERROR_SERVICE. The error code from the service
-*  is assigned to  *pui_service_return. \n
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a \a context which is not initialized.\n
+*       Calling with a \a sharedMem which has not be correctly populated
+*       in accordance with the specification.\n
+*       Attempting to initialize the same Shared Memory structure concurrently
+*       from multiple threads.Multi-threaded Client Applications must use
+*       platform-provided locking mechanisms to ensure that
+*       this case does not occur.
 *
-*  Unlike the case where a system error occurs, the service
-*  can return a message: the operation transitions to the 
-*  state TEE_STATE_DECODE and the decoder functions can be used.\n
+* \b Implementor's \b Notes \n
+* This design allows a non-NULL buffer with a size of 0 bytes to allow
+* trivial integration with any implementations of the C library malloc,
+* in which is valid to allocate a zero byte buffer and receive a non-
+* NULL pointer which may not be de-referenced in return.
+* Once successfully registered, the Shared Memory block can be used for
+* efficient data transfers between the Client Application and the
+* Trusted Application. The TEE Client API implementation and the underlying
+* communications infrastructure SHOULD attempt to transfer data in to the
+* TEE without using copies, if this is possible on the underlying
+* implementation, but MUST fall back on data copies if zero-copy cannot be
+* achieved. Client Application developers should be aware that,
+* if the Implementation requires data copies,
+* then Shared Memory registration may allocate a block of memory of the
+* same size as the block being registered.
 *
-*  For open and invoke operations, if the operation succeeds then
-*  tee_operation_perform returns TEE_SUCCESS and
-*  the value TEE_SUCCESS is also assigned to *pui_service_return. The operation
-*  transitions to the state TEE_STATE_DECODE and the client can use the decoder
-*  functions to retrieve the message, if present, from the service.\n
-*  
-*  For close operations the service cannot return a structured message, and the
-*  operation will always transition to TEE_STATE_INVALID.
-*  The decoder functions cannot be used on a close operation.
-*  A close operation cannot be performed while the session has other operations 
-*  open, or has allocated shared memory blocks – this results in
-*  UNDEFINED behavior.\n
-*  
-*  Regardless of the success or failure of the function the client code must
-*  always call tee_operation_release to
-*  release any resources used by the operation.\n
-*  Undefined Behavior:\n
-*  The following situations result in UNDEFINED behavior:\n
-*   Calling with operation set to NULL.\n
-*   Calling with operation pointing to an operation not in the state 
-*       TEE_STATE_ENCODE.\n
-*   Calling with operation pointing to a close operation, where the session 
-*       being closed still has other operations open, or has allocated 
-*       shared memory blocks.\n
-*       Calling with service_return set to NULL.
+* @param context: A pointer to an initialized TEE Context
+* @param sharedMem:  A pointer to a Shared Memory structure to register: \n
+* the \a buffer, \a size, and \a flags fields of the sharedMem structure
+* MUST be set in accordance with the specification described above
 *
-* @param ps_operation: A pointer to the operation.
-* @param pui_service_return: A pointer to the variable that will contain the
-* service return code.
-*
-* @return 
-* TEE_SUCCESS: The operation was executed successfully.\n
-* TEE_ERROR_ENCODE_MEMORY: The encoder is in an error condition – it ran out of
-* memory space.\n
-* TEE_ERROR_ACCESS_DENIED: The service was not found or the client was not
-* authorized to access it.\n
-* TEE_ERROR_SERVICE: The service itself threw an error, which can be found in
-* *pui_service_return.\n
-* TEE_ERROR_CANCEL: The operation timed out, or was explicitly cancelled.\n
-* TEE_ERROR_*: An implementation-defined error code for any other error.
+* @return TEEC_Result:
+* TEEC_SUCCESS: The device was successfully opened. \n
+* TEEC_ERROR_*: An implementation-defined error code for any other error.
 *
 */
-tee_return_t tee_operation_perform(tee_operation_t* ps_operation,
-                                 tee_return_t* pui_service_return);
+TEEC_Result TEEC_RegisterSharedMemory(
+    TEEC_Context*      context,
+    TEEC_SharedMemory* sharedMem);
+
 
 /**
-* @brief Release operation
+* @brief Allocate a shared memory block.
 *
-* This function releases an operation, freeing any associated resources.
-* The behavior of this function varies slightly depending on the state of the
-* operation:\n
-*     TEE_STATE_ENCODE or TEE_STATE_PERFORMABLE: The operation has not been issued
-* to the system, and is destroyed without being issued. 
-* In this case it may be required to unwind some of the state change made to 
-* related structures, for example if the operation is a session closure 
-* the session state must transition back to TEE_STATE_OPEN.\n
-*     TEE_STATE_DECODE: The operation has been issued to the system and a
-* response has been returned.
-* After destroying an operation in this state, any messages in its 
-* decoder are lost, including unread entries and arrays that have been 
-* decoded by reference. If the client needs to keep any data from the message
-* it must copy it out of the decoder owned memory before calling this
-* function.\n
-*   TEE_STATE_INVALID: This function does nothing.
-* 
-* After this function returns the operation must be considered to be
-* in the state TEE_STATE_UNDEFINED.\n
+* This function allocates a new block of memory as a block of Shared Memory
+* within the scope of the specified TEE Context, in accordance with the
+* parameters which have been set by the Client Application inside the
+* \a sharedMem structure.
 *
-* Undefined Behavior:\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with operation set to NULL.\n
-*   Calling with operation pointing to an operation in a state other than 
-*       TEE_STATE_ENCODE, TEE_STATE_PERFORMABLE, TEE_STATE_DECODE or
-*       TEE_STATE_INVALID.
+* The parameter \a context MUST point to an initialized TEE Context.
 *
-* @param ps_operation: A pointer to the operation to release.
+* The \a sharedMem parameter MUST point to the Shared Memory structure
+* defining the region to allocate.
+* Client Application MUST have populated the following fields of the
+* Shared Memory structure: \n
+* The \a size field MUST contain the desired size of the buffer, in bytes.
+* The size is allowed to be zero. In this case memory is allocated and
+* the pointer written in to the buffer field on return MUST not be NULL
+* but MUST never be de-referenced by the Client Application. In this case
+* however, the Shared Memory block can be used in
+* Registered Memory References. \n
+* The \a flags field indicates the allowed directions of data flow
+* between the Client Application and the TEE. \n
+* The Implementation MUST assume that all other fields in the Shared Memory
+* structure have undefined content.
 *
+* An Implementation MAY put a hard limit on the size of a single
+* Shared Memory block, defined by the constant
+* \a TEEC_CONFIG_SHAREDMEM_MAX_SIZE.
+* However note that this function may fail to allocate a
+* block smaller than this limit due to a low resource condition
+* encountered at run-time.
+*
+* If this function returns any code other than \a TEEC_SUCCESS
+* the Implementation MUST have set the \a buffer field of \a sharedMem to NULL.
+*
+*
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a \a context which is not initialized.\n
+*       Calling with a \a sharedMem which has not be correctly populated
+*       in accordance with the specification.\n
+*       Attempting to initialize the same Shared Memory structure concurrently
+*       from multiple threads.Multi-threaded Client Applications must use
+*       platform-provided locking mechanisms to ensure that
+*       this case does not occur.
+*
+* \b Implementor's \b Notes \n
+* Once successfully allocated the Shared Memory block can be used for
+* efficient data transfers between the Client Application and the
+* Trusted Application. The TEE Client API and the underlying communications
+* infrastructure should attempt to transfer data in to the TEE
+* without using copies, if this is possible on the underlying implementation,
+* but may have to fall back on data copies if zero-copy cannot be achieved.
+* The memory buffer allocated by this function must have sufficient
+* alignment to store any fundamental C data type at a natural alignment.
+* For most platforms this will require the memory buffer to have 8-byte
+* alignment, but refer to the Application Binary Interface (ABI) of the
+* target platform for details.
+*
+* @param context: A pointer to an initialized TEE Context
+* @param sharedMem:  A pointer to a Shared Memory structure to allocate: \n
+* Before calling this function, the Client Application MUST have set
+* the \a size, and \a flags fields. \n
+* On return, for a successful allocation the Implementation
+* MUST have set the pointer buffer to the address of the allocated block,
+* otherwise it MUST set buffer to NULL.
+*
+* @return TEEC_Result:
+* TEEC_SUCCESS: The allocation was successful. \n
+* TEEC_ERROR_*: An implementation-defined error code for any other error.
 *
 */
-void tee_operation_release(tee_operation_t* ps_operation);
+TEEC_Result TEEC_AllocateSharedMemory(
+    TEEC_Context*      context,
+    TEEC_SharedMemory* sharedMem);
+
 
 /**
-* @brief Prepare the operation for close session 
+* @brief Release a shared memory block.
 *
-* This function is responsible for locally preparing an operation that can be
-* used to close a session between the client and a service.
+* This function deregisters or deallocates a previously initialized block of
+* Shared Memory.
+* For a memory buffer allocated using \a TEEC_AllocateSharedMemory the
+* Implementation MUST free the underlying memory and the Client Application
+* MUST NOT access this region after this function has been called.
+* In this case the Implementation MUST set the \a buffer and \a size fields
+* of the \a sharedMem structure to NULL and 0 respectively before returning.
 *
-* This function accepts an operation assumed to be in the state
-* TEE_STATE_UNDEFINED.
+* For memory registered using \a TEEC_RegisterSharedMemory
+* the Implementation MUST deregister the underlying memory from the TEE,
+* but the memory region will stay available to the Client Application for
+* other purposes as the memory is owned by it.
 *
-* When this function returns TEE_SUCCESS the state of the session is changed to
-* TEE_STATE_CLOSING. In this state any operation still running or shared memory
-* block still allocated can stillbe used, but it is not possible to create
-* new shared memory blocks or prepare new operations within the session. If this
-* operation is never issued, tee_operation_release must transition
-* the session state back to TEE_STATE_OPEN.
+* The Implementation MUST do nothing if the \a sharedMem parameter is \a NULL.
 *
-* Note that performing a close operation while other operations exist with a
-* session, or while shared memory blocks are still allocated within it, 
-* results in UNDEFINED behavior.
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Attempting to release Shared Memory which is used by a
+*       pending operation. \n
+*       Attempting to release the same Shared Memory structure concurrently
+*       from multiple threads. Multi-threaded Client Applications
+*       must use platform-provided locking mechanisms to ensure that
+*       this case does not occur.
 *
-* When this function returns TEE_SUCCESS the operation is set to the state
-* TEE_STATE_PERFORMABLE; this state allows the client to perform the close
-* operation, but not to encode a message to be exchanged with the service.
-* The client must call the function tee_operation_perform, or the asynchronous
-* equivalent, to issue the operation to the security environment.
+* @param sharedMem:  A pointer to a valid Shared Memory structure \n
 *
-* When this function fails it can return any error code. In these conditions the
-* state of the session must be unchanged, including the operation count. 
-* The state the operation must be set to TEE_STATE_INVALID.
-*
-* Note that the perform operation for a session closure cannot be canceled or
-* timed-out by the client. When tee_operation_perform completes,
-* whether with success or failure, the session is considered closed.
-* 
-* On failure of the perform function the client must still call
-* tee_operation_release to release resources associated
-* with the operation.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*    Calling with session set to NULL.\n
-*    Calling with session pointing to a session in a state other than 
-*       TEE_STATE_OPEN.\n
-*    Calling with operation set to NULL.
-*
-* @param ps_session: A pointer to session.
-* @param ps_operation: A pointer to the operation.
-*
-* @return 
-* TEE_SUCCESS: The operation has been prepared successfully.\n
-* TEE_ERROR_*: An implementation-defined error code for any other error.\n
-
 */
-tee_return_t tee_operation_prepare_close(tee_session_t* ps_session,
-                                       tee_operation_t* ps_operation);
+void TEEC_ReleaseSharedMemory(
+    TEEC_SharedMemory* sharedMem);
+
 
 /**
-* @brief Close the device connection
-* 
-* This function closes a connection with a device, freeing any associated
-* resources.
-* If the passed device is in the state TEE_STATE_INVALID this function must set
-* to the state to TEE_STATE_UNDEFINED and return TEE_SUCCESS.
+* @brief Opens a new session between client and trusted application
 *
-* If the passed device is in the state TEE_STATE_OPEN with a session count of
-* zero this function must delete the device. This operation cannot fail; 
-* the function must always set the state to TEE_STATE_UNDEFINED and return
-* TEE_SUCCESS.
 *
-* If the passed device is in the state TEE_STATE_OPEN with a non-zero session
-* count, this function must return TEE_ERROR_ILLEGAL_STATE
-* and leave the device unmodified.
+* This function opens a new Session between the Client Application and
+* the specified Trusted Application.
 *
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*    Calling with device set to NULL.\n
+* The Implementation MUST assume that all fields of this \a session structure
+* are in an \a undefined state. When this function returns \a TEEC_SUCCESS
+* the Implementation MUST have populated this structure with any information
+* necessary for subsequent operations within the Session.
 *
-* @param ps_device: A pointer to the device to delete.
+* The target Trusted Application is identified by a UUID passed in the
+* parameter destination.
 *
-* @return 
-* TEE_SUCCESS: The device is successfully closed.\n
-* TEE_ERROR_ILLEGAL_STATE: The device is in the state TEE_STATE_OPEN and has a
-* non-zero session count.\n
-* TEE_ERROR_*: An implementation-defined error code for any other error.\n*
+* The Session MAY be opened using a specific connection method that can carry
+* additional connection data, such as data about the user or user-group running
+* the Client Application, or about the Client Application itself.
+* This allows the Trusted Application to implement access control methods
+* which separate functionality or data accesses for different actors
+* in the rich environment outside of the TEE. The additional data associated
+* with each connection method is passed in via the pointer \a connectionData.
+* For the core login types the following connection data is required:
+*
+* \a TEEC_LOGIN_PUBLIC - \a connectionData SHOULD be \a NULL.\n
+* \a TEEC_LOGIN_USER - \a connectionData SHOULD be \a NULL.\n
+* \a TEEC_LOGIN_GROUP - \a connectionData MUST point to a uint32_t
+* which contains the group which this Client Application wants to connect as.
+* The Implementation is responsible for securely ensuring that the
+* Client Application instance is actually a member of this group.\n
+* \a TEEC_LOGIN_APPLICATION - \a connectionData SHOULD be \a NULL.\n
+* \a TEEC_LOGIN_USER_APPLICATION - \a connectionData SHOULD be \a NULL.\n
+* \a TEEC_LOGIN_GROUP_APPLICATION - \a connectionData MUST point to a uint32_t
+* which contains the group which this Client Application wants to connect as.
+* The Implementation is responsible for securely ensuring that the
+* Client Application instance is actually a member of this group.\n
+*
+* An open-session operation MAY optionally carry an Operation Payload,
+* and MAY also be cancellable. When the payload is present the parameter
+* \a operation MUST point to a \a TEEC_Operation structure populated by the
+* Client Application. If \a operation is NULL then no data buffers are
+* exchanged with the Trusted Application, and the operation cannot be
+* cancelled by the Client Application.
+*
+* The result of this function is returned both in the function
+* \a TEEC_Result return code and the return origin, stored in the variable
+* pointed to by \a returnOrigin: \n
+* If the return origin is different from \a TEEC_ORIGIN_TRUSTED_APP,
+* then the return code MUST be  one of the defined error codes .
+* If the return code is \a TEEC_ERROR_CANCEL then it means that the
+* operation was cancelled before it reached the Trusted Application.\n
+* If the return origin is \a TEEC_ORIGIN_TRUSTED_APP, the meaning of the
+* return code depends on the protocol between the Client Application
+* and the Trusted Application. However, if \a TEEC_SUCCESS is returned,
+* it always means that the session was successfully opened and if the
+* function returns a code different from \a TEEC_SUCCESS,
+* it means that the session opening failed.
+*
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a \a context which is not yet initialized. \n
+*       Calling with a connectionData set to NULL if connection data is
+*  required by the specified connection method. \n
+*       Calling with an operation containing an invalid paramTypes field,
+* i.e., containing a reserved parameter type or where a parameter type
+* that conflicts with the parent Shared Memory. \n
+*       Encoding Registered Memory References which refer to
+* Shared Memory blocks allocated within the scope of a different TEE Context. \n
+*       Attempting to open a Session using the same Session structure
+* concurrently from multiple threads. Multi-threaded Client Applications
+* must use platform-provided locking mechanisms, to ensure that this
+* case does not occur.\n
+*      Using the same Operation structure for multiple concurrent operations. \n
+*
+* @param context: A pointer to an initialized TEE Context.
+* @param session: A pointer to a Session structure to open.
+* @param destination: A pointer to a structure containing the UUID of the
+* destination Trusted Application
+* @param connectionMethod:  The method of connection to use
+* @param connectionData: Any necessary data required to support the
+* connection method chosen.
+* @param operation: A pointer to an Operation containing a set of Parameters
+* to exchange with the Trusted Application, or \a NULL if no Parameters
+* are to be exchanged or if the operation cannot be cancelled
+* @param returnOrigin: A pointer to a variable which will contain the
+* return origin. This field may be \a NULL if the return origin is not needed.
+*
+* @return TEEC_Result:
+* TEEC_SUCCESS: The session was successfully opened. \n
+* TEEC_ERROR_*: An implementation-defined error code for any other error.
 */
-tee_return_t tee_device_close(tee_device_t* ps_device);
+TEEC_Result TEEC_OpenSession (
+    TEEC_Context*    context,
+    TEEC_Session*    session,
+    const TEEC_UUID* destination,
+    uint32_t         connectionMethod,
+    const void*      connectionData,
+    TEEC_Operation* operation,
+    uint32_t*        returnOrigin);
 
 
 /**
-* @brief This function allocates a block of memory, defined by the structure
-* pointed to by ps_shared_mem, which is shared 
-* between the client and the service it is connected to.
+* @brief Close a opened session between client and trusted application
 *
-* This function allocates a block of memory, defined by the structure pointed to
-* by ps_shared_mem, which is shared
-* between the client and the service it is connected to.
 *
-* Once a block is allocated, the client and the service can exchange references
-* to the allocated block in messages encoded using structured messages. 
-* Depending on the implementation of the secure environment, this may
-* allow the service to directly access this block of memory without the need for
-* a copy; this allows for high-bandwidth non-structured communications.
+* This function closes a Session which has been opened with a
+* Trusted Application.
 *
-* On entry to this function the session must be in the state TEE_STATE_OPEN.
-*
-* On entry to this function the fields ui_flags and ui_length of the 
-* shared memory structure must have been  filled in with the required values. 
-* Other fields of the shared memory structure have UNDEFINED state on entry to
-* this function and are filled in by the time the function returns.
-*
-* If this function returns TEE_SUCCESS, the value ps_shared_mem->p_block will
-* contain the address of the shared
-* memory allocation and the shared memory structure will be in the state
-* TEE_STATE_OPEN. The implementation  must guarantee that the
-* returned buffer allocation is aligned on an 8-byte address boundary.
-*
-* If this function returns any other value, the state of the structure is
-* TEE_STATE_INVALID and ps_shared_mem->p_block will be NULL.
-*
-* After successful allocation of a block the client may subsequently pass the
-* shared memory structure to the
-* function tee_encode_memory_reference to create a reference to a portion of the
-* block.
-*
-* Blocks are flagged with the intended direction of data flow, as described by
-* the ps_shared_mem->ui_flags parameter. If an attempt is later made to encode 
-* a memory reference with incompatible sharing attributes an
-* encoder error is thrown when the operation is performed.
-*
-* The structure must be passed to the function tee_shared_memory_release when the
-* block is no longer needed
-*
-* Undefined Behavior :\n
-* The following situations result in UNDEFINED behavior:\n
-*       Calling with session set to NULL.\n
-*       Calling with session in a state other than TEE_STATE_OPEN.\n
-*       Calling with shared_mem set to NULL.\n
-*       Calling with shared_mem->flags set to an invalid set of flags.\n
-*       Calling with shared_mem->length set to 0.\n
-*
-* @param ps_session: A pointer to the session.
-* @param ps_shared_mem: A pointer to the shared memory block structure.
-*
-* @return 
-* TEE_SUCCESS: the memory was allocated successfully.\n
-* TEE_ERROR_MEMORY: there is not enough memory to meet the allocation request.\n
-* TEE_ERROR_*: an implementation-defined error code for any other error.\n
-*/
-tee_return_t tee_shared_memory_allocate(tee_session_t* ps_session ,
-                                        tee_shared_mem_t* ps_shared_mem);
-
-/**
-* @brief This function allocates a block of memory, defined by the structure
-* pointed to by ps_shared_mem, which is shared
-* between the client and the service it is connected to.
-* This function marks a block of shared memory associated with a session as 
-* no longer shared.
-*
-* If the input shared memory structure is in the state TEE_STATE_INVALID
-* this function does nothing, otherwise it frees the memory block. 
-* The caller must not access the memory buffer after calling this function.
-*
-* The shared memory structure returned by this function will be in the state 
-* TEE_STATE_UNDEFINED.
-*
-* When this function is called, the shared memory block must not be referenced 
-* by any operation, otherwise UNDEFINED behavior will occur.
-*
-* Note that shared memory blocks must always be freed by calling this function; 
-* all memory blocks must be freed before a session can closed.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with shared_mem set to NULL.\n
-*   Calling with shared_mem pointing to a shared memory block that is still 
-*       referenced by an operation.
-*  
-* @param ps_shared_mem - A pointer to the shared memory block to free.
-*/
-void tee_shared_memory_release(tee_shared_mem_t* ps_shared_mem);
-
-/**
-* @brief Encode unsigned 32-bit integer
-*
-* Calling this function appends the value of the passed uint32_t, pk_data, 
-* to the end of the encoded message.
-*
-* This function can only be called when the operation is in the 
-* state TEE_STATE_ENCODE. This occurs after the operation has been prepared,
-* but before it has been performed.
-*
-* If an error occurs, for example if there is no more space in the 
-* encoder buffer, this function sets the error state of the encoder.
-*
-* This function does nothing if the error state of the encoder is 
-* already set upon entry.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with operation set to NULL.\n
-*   Calling with operation pointing to an operation in a state other 
-*       than TEE_STATE_ENCODE.
-*
-* @param ps_operation - A pointer to the operation for which we are encoding.
-* @param data - The value to encode in the buffer.
-* @param param_type - In or out 
-*/
-void tee_encode_uint32( tee_operation_t* ps_operation,
-                        void const* data, 
-                        int param_type);
-
-/**
-* @brief Encode binary array to the encoded message
-*
-* Calling this function appends a binary array pointed to by array and of length
-* length bytes to the end ofthe encoded message. The implementation must 
-* guarantee that when decoding the array in the service the base pointer 
-* is eight byte aligned to enable any basic C data structure to be 
-* exchanged using this method.
-*
-* It is valid behavior to encode a zero length array, where array is not NULL 
-* but uiLength is 0, and a NULL array, where array is NULL and length is zero, 
-* using this function.
-*
-* This function can only be called when the operation is in the state 
-* TEE_STATE_ENCODE. This occurs after the operation has been prepared,
-* but before it has been performed.
-*
-* If an error occurs, for example if there is no more space in the encoder 
-* buffer, this function sets the error state of the encoder.
-*
-* This function does nothing if the error state of the encoder is already 
-* set upon entry.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with operation set to NULL.\n
-*   Calling with operation pointing to an operation in a state other than 
-*       TEE_STATE_ENCODE.\n
-*   Calling with array set to NULL when length is a length other than 0.
-*
-* Output\n
-* This function may set the state of the encoder to TEE_ERROR_ENCODE_MEMORY
-* if there is insufficient space to encode the array.
-*
-* @param ps_operation - A pointer to the operation for which we are encoding.
-* @param pk_array - A pointer to the binary buffer to encode.
-* @param length - The length of the binary buffer in bytes.
-* @param param_type - In or out data 
-*/
-void tee_encode_array( tee_operation_t* ps_operation,
-                        void const* pk_array, 
-                        uint32_t length, 
-                        int param_type);
-
-/**
-* @brief Encode empty binary array to the encoded message
-*
-* Calling this function appends an empty binary array of length "length" bytes 
-* to the end of the encoded message and returns the pointer to this array 
-* to the client. This allows an implementation with fewer copies, as
-* the encoder buffer can be filled directly by the client without needing a 
-* copy from an intermediate buffer into the real encoder buffer.
-*
-* The implementation must guarantee that the returned buffer allocation is 
-* aligned on an eight byte boundary, enabling direct sharing of any C data type 
-* in accordance with the ARM Application Binary Interface [ARM IHI
-* 0036A].
-*
-* It is valid behavior to allocate space for a zero length array in the 
-* encoder stream. This will return a pointer that is not NULL, 
-* but this pointer must never be dereferenced by the client code or UNDEFINED 
-* behavior may result.
-*
-* This function can only be called when the operation is in the state 
-* TEE_STATE_ENCODE. This occurs after the operation has been prepared,
-* but before it has been performed. Once the operation transitions out of the 
-* state TEE_STATE_ENCODE, which occurs if the operation is performed or
-* is released, then the client must no longer access this buffer or 
-* UNDEFINED behavior may result.
-*
-* If an error occurs, for example if there is no more space in the 
-* encoder buffer, this function sets the error state of the encoder and 
-* returns NULL.
-*
-* This function does nothing if the error state of the encoder is already 
-* set upon entry, and will return NULL.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with operation set to NULL.\n
-*   Calling with operation pointing to an operation in a state other 
-*       than TEE_STATE_ENCODE.
-*
-* Output\n
-* This function may set the state of the encoder to TEE_ERROR_ENCODE_MEMORY
-* if there is insufficient space to encode the array space.
-*
-* @param ps_operation - A pointer to the operation for which we are encoding.
-* @param length - The length of the desired binary buffer in bytes.
-* @param param_type - In or Out data
-*
-* @return  - A pointer to the buffer, or NULL upon error.
-*/
-void* tee_encode_array_space( tee_operation_t* ps_operation,
-                        uint32_t length,
-                        int param_type);
-
-
-
-/**
-* @brief Appends a reference of previously allocated shared block to the encoded
-* buffer
-*
-* Calling this function appends a reference to a range of a previously created 
-* shared memory block.
-*
-* Memory references are used to provide a synchronization token protocol which 
-* informs the service when it can read from or write to a portion of the shared 
-* memory block. A memory reference is associated with a specific operation and 
-* is valid only during the execution of that operation.
-*
-* When the tee_encode_memory_reference function completes successfully the
-* shared memory block is said to be “referenced”. This reference is destroyed 
-* when the operation perform function completes (with or without an error). 
-* If the operation is never performed for any reason, the reference is destroyed
-* when the operation is released. A shared memory block cannot be released 
-* while is it still referenced in an operation. Once a memory reference 
-* has been created the client must not read from, or write to, 
-* the referenced range until the reference is destroyed.
-*
-* Some implementations of the secure environment may not be able to implement 
-* genuine shared memory and/or may make use of device hardware 
-* outside of the core. In these cases the system may require data copies or
-* cache maintenance operations to ensure visibility of the data in a 
-* coherent manner. For this reason the memory reference is marked with a 
-* number of flags which can be used to ensure the correct copies and cache
-* maintenance operations occur. Primarily these indicate the memory operations 
-* that the service is allowed to perform. 
-* Exactly one of the following flags must be specified:
-*
-* TEE_MEM_SERVICE_RO: The service can only read from the memory block.\n
-* TEE_MEM_SERVICE_WO: The service can only write to the memory block.\n
-* TEE_MEM_SERVICE_RW: The service can both read from and write to the
-* memory block.
-*
-* These flags must be a sub-set of the service permissions specified 
-* when the block was created using tee_shared_memory_allocate,
-* otherwise the encoder error TEE_ERROR_ENCODE_FORMAT will be raised.
-*
-* If an error occurs, for example if there no more space in the encoder buffer 
-* or the range lies outside of the memory block, this function sets 
-* the error state of the encoder. Additionally, there is a restriction 
-* whereby the client cannot have multiple concurrent references to any address 
-* in the memory block. Attempting to write a memory reference that overlaps an 
-* existing one will result in the encoder entering an error state. 
-* In any of these cases the shared memory block is not referenced by 
+* All Commands within the Session MUST have completed before
 * calling this function.
 *
-* This function does nothing if the error state of the encoder is already 
-* set upon entry.
+* The Implementation MUST do nothing if the session parameter is NULL.
 *
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with psOperation set to NULL.\n
-*   Calling with psOperation pointing to an operation in a state other than 
-*       TEE_STATE_ENCODE.\n
-*   Calling with ps_shared_mem set to NULL.
-*   Calling with ps_shared_mem pointing to a memory block in a state other than 
-*       TEE_STATE_OPEN.
+* The implementation of this function MUST NOT be able to fail:
+* after this function returns the Client Application must be able to
+* consider that the Session has been closed.
 *
-* @param ps_operation - A pointer to the operation for which we are encoding.
-* @param ps_shared_mem - A pointer to the shared memory block structure.
-* @param offset - The offset, in bytes, from the start of the 
-*                 shared memory block to the start of the memory range.
-* @param length - The length, in bytes, of the memory range.
-* @param flags - The access flags for this memory reference.
-* @param param_type - In or Out data
+* \b Programmer \b Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a session which still has commands running.\n
+*       Attempting to close the same Session concurrently from multiple
+* threads. \n
+*       Attempting to close the same Session more than once.
+*
+* @param session: Session to close
 */
-void tee_encode_memory_reference( tee_operation_t* ps_operation,
-                        tee_shared_mem_t* ps_shared_mem,
-                        uint32_t offset,
-                        uint32_t length,
-                        uint32_t flags,
-                        int param_type);
+void TEEC_CloseSession (
+    TEEC_Session*    session);
 
 
 /**
-* @brief Decode a unsigned 32-bit integer value from message
+* @brief Invokes a command within the session
 *
-* This function decodes a single item of type uint32_t from the current offset 
-* in the structured message returned by the service.
 *
-* If on entry the decoder is in an error state this function does nothing 
-* and returns 0. The state of the decoder remains unchanged.
+* This function invokes a Command within the specified Session.
 *
-* If the decoder error state is not set on entry, the system attempts to decode 
-* the data item at the current offset in the decoder and return the result. 
+* The parameter \a session MUST point to a valid open Session.
 *
-* If an error occurs this function returns 0 and sets the error state of the
-* decoder. Otherwise the data value is returned by the function and the decoder 
-* offset is incremented past the item that has been decoded.
+* The parameter \a commandID is an identifier that is used to indicate
+* which of the exposed Trusted Application functions should be invoked.
+* The supported command identifiers are defined by the Trusted Application‟s
+* protocol.
 *
-* The decoder may set its error state in the following situations:\n
-*   There are no more items in the decoder.\n
-*   The item in the decoder is not of the type requested.\n
+* \b Operation \b Handling \n
+* A Command MAY optionally carry an Operation Payload.
+* When the payload is present the parameter \a operation MUST point to a
+* \a TEEC_Operation structure populated by the Client Application.
+* If \a operation is NULL then no parameters are exchanged with the
+* Trusted Application, and only the Command ID is exchanged.
 *
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*   Calling with "operation" set to NULL.\n
-*   Calling with "operation" pointing to an operation not in the 
-*       state TEE_STATE_DECODE.
+* The \a operation structure is also used to manage cancellation of the
+* Command. If cancellation is required then \a the operation pointer MUST be
+* \a non-NULL and the Client Application MUST have zeroed the \a started
+* field of the \a operation structure before calling this function.
+* The \a operation structure MAY contain no Parameters if no data payload
+* is to be exchanged.
 *
-* Output\n
-* This function will set the state of the decoder to TEE_ERROR_DECODE_NO_DATA
-* if there is no further data to decode.
+* The Operation Payload is handled as described by the following steps,
+* which are executed sequentially: \n
+* 1. Each Parameter in the Operation Payload is examined.
+* If the parameter is a Temporary Memory Reference, then it is registered
+* for the duration of the Operation in accordance with the fields set in
+* the \a TEEC_TempMemoryReference structure and the data flow direction
+* specified in the parameter type. Refer to the \a TEEC_RegisterSharedMemory
+* function for error conditions which can be triggered during
+* temporary registration of a memory region. \n
+* 2. The contents of all the Memory Regions which are exchanged
+* with the TEE are synchronized \n
+* 3. The fields of all Value Parameters tagged as input are read by the
+* Implementation. This applies to Parameters of type \a TEEC_VALUE_INPUT or
+* \a TEEC_VALUE_INOUT. \n
+* 4. The Operation is issued to the Trusted Application.
+* During the execution of the Command, the Trusted Application may read
+* the data held within the memory referred to by input Memory References.
+* It may also write data in to the memory referred to by
+* output Memory References, but these modifications are not guaranteed
+* to be observable by the Client Application until the command completes. \n
+* 5. After the Command has completed, the Implementation MUST update the
+* \a size field of the Memory Reference structures flagged as output: \n
 *
-* This function may optionally check the type of the data returned and may set 
-* the state of the decoder to TEE_ERROR_DECODE_TYPE if there is a type mismatch.
-* The presence of type checking in the library is implementation-defined; 
-* to ensure safety, clients must check the value of returned data to ensure 
-* that it meets any critical criteria.
+* a. For Memory References that are non-null and marked as output,
+* the updated size field MAY be less than or equal to original size field.
+* In this case this indicates the number of bytes actually written by the
+* Trusted Application, and the Implementation MUST synchronize this region
+* with the Client Application memory space. \n
+* b. For all Memory References marked as output, the updated size
+* field MAY be larger than the original size field.
+* For null Memory References, a required buffer size MAY be specified by
+* the Trusted Application. In these cases the passed output buffer was
+* too small or absent, and the returned size indicates the size of the
+* output buffer which is necessary for the operation to succeed.
+* In these cases the Implementation SHOULD NOT synchronize any
+* shared data with the Client Application.\n\n
 *
-* @param ps_operation - The operation from which we decoding the integer.
+* 6. When the Command completes, the Implementation MUST update the fields
+* of all Value Parameters tagged as output,
+* i.e., of type \a TEEC_VALUE_OUTPUT or \a TEEC_VALUE_INOUT. \n
+* 7. All memory regions that were temporarily registered at the
+* beginning of the function are deregistered as if the function
+* \a TEEC_ReleaseSharedMemory was called on each of them.
+* 8. Control is passed back to the calling Client Application code. \n
+* \b Programmer \b Error \n.
 *
-* @return - The value of the data item on success, 0 on any error.
+* The result of this function is returned both in the function
+* \a TEEC_Result return code and the return origin, stored in the
+* variable pointed to by \a returnOrigin: \n
+*       If the return origin is different from \a TEEC_ORIGIN_TRUSTED_APP,
+* then the return code MUST be one of the error codes.
+* If the return code is TEEC_ERROR_CANCEL then it means that the operation
+* was cancelled before it reached the Trusted Application.\n
+* If the return origin is \a TEEC_ORIGIN_TRUSTED_APP, then the
+* meaning of the return code is determined by the protocol exposed by the
+* Trusted Application. It is recommended that the Trusted Application
+* developer chooses TEEC_SUCCESS (0) to indicate success in their protocol,
+* as this means that it is possible for the Client Application developer
+* to determine success or failure without looking at the return origin.
+*
+* \b Programmer \n Error \n
+* The following usage of the API is a programmer error:\n
+*       Calling with a \a session which is not an open session. \n
+*       Calling with invalid content in the \a paramTypes field of the
+* \a operation structure. This invalid behavior includes types which are
+* \a Reserved for future use or which conflict with the \a flags
+* of the parent Shared Memory block. \n
+*       Encoding Registered Memory References which refer to
+* Shared Memory blocks allocated or registered within the scope of a
+* different TEE Context. \n
+*       Using the same operation structure concurrently for
+* multiple operations, whether open Session operations or Command invocations.
+*
+* @param session: The open Session in which the command will be invoked.
+* @param commandID: The identifier of the Command within the
+* Trusted Application to invoke. The meaning of each Command Identifier
+* must be defined in the protocol exposed by the Trusted Application
+* @param operation: A pointer to a Client Application initialized
+* \a TEEC_Operation structure, or NULL if there is no payload to send or
+* if the Command does not need to support cancellation.
+* @param returnOrigin: A pointer to a variable which will contain the
+* return origin. This field may be \a NULL if the return origin is not needed.
+*
+* @return TEEC_Result:
+* TEEC_SUCCESS: The command was successfully invoked. \n
+* TEEC_ERROR_*: An implementation-defined error code for any other error.
 */
-uint32_t tee_decode_uint32( tee_operation_t* ps_operation);
+TEEC_Result TEEC_InvokeCommand(
+    TEEC_Session*     session,
+    uint32_t          commandID,
+    TEEC_Operation*   operation,
+    uint32_t*         returnOrigin);
 
 
 /**
-* @brief  Decode a block of binary data from the message
+* @brief Request cancellation of pending open session or command invocation.
 *
-* This function decodes a block of binary data from the current offset 
-* in the structured message returned by the service. 
-* The length of the block is returned in *pui_length and the base pointer is 
-* the function return value.
+* This function requests the cancellation of a pending open Session operation
+* or a Command invocation operation. As this is a synchronous API,
+* this function must be called from a thread other than the one executing the
+* \a TEEC_OpenSession or \a TEEC_InvokeCommand function.
 *
-* The implementation must guarantee that the returned buffer allocation is 
-* aligned on an eight byte boundary, enabling direct sharing of any C data type 
-* in accordance with the ARM Application Binary Interface [ARM IHI
-* 0036A].
+* This function just sends a cancellation signal to the TEE and returns
+* immediately; the operation is not guaranteed to have been cancelled
+* when this function returns. In addition, the cancellation request is just
+* a hint; the TEE or the Trusted Application MAY ignore the
+* cancellation request.
 *
-* It is expected that this function will return a pointer to the binary data 
-* in the encoder buffer. The client must make use of this memory before 
-* the operation is released. After the operation is released the client 
-* must not access the buffer again. If the data is needed locally after the 
-* operation has been released it must first be copied into a
-* client allocated memory block.
+* It is valid to call this function using a \a TEEC_Operation structure
+* any time after the Client Application has set the \a started field of an
+* Operation structure to zero. In particular, an operation can be
+* cancelled before it is actually invoked, during invocation, and
+* after invocation. Note that the Client Application MUST reset
+* the started field to zero each time an Operation structure is used
+* or re-used to open a Session or invoke a Command if the new operation
+* is to be cancellable.
 *
-* If on entry the decoder is in an error state this function does nothing 
-* and returns NULL, with pui_length set to 0. 
-* The state of the decoder remains unchanged.
+* Client Applications MUST NOT reuse the Operation structure for another
+* Operation until the cancelled command has actually returned in the thread
+* executing the \a TEEC_OpenSession or \a TEEC_InvokeCommand function.
 *
-* If the decoder error state is not set on entry, the system attempts to 
-* decode the data item at the current offset in the decoder and 
-* return the result. If an error occurs this function returns NULL as the 
-* base pointer, sets the length to 0, and sets the error state of the decoder. 
-* Otherwise the data value is returned by the function, and the
-* decoder offset is incremented past the array item in the decoder.
+* \b Detecting \b cancellation \n
+* In many use cases it will be necessary for the Client Application
+* to detect whether the operation was actually cancelled, or whether it
+* completed normally. \n
+* In some implementations it MAY be possible for part of the infrastructure
+* to cancel the operation before it reaches the Trusted Application.
+* In these cases the return origin returned by \a TEEC_OpenSession or
+* \a TEEC_InvokeCommand MUST be either or \a TEEC_ORIGIN_API,
+* \a TEEC_ORIGIN_COMMS, \a TEEC_ORIGIN_TEE, and the return code MUST be
+* \a TEEC_ERROR_CANCEL. \n
+* If the cancellation request is handled by the Trusted Application itself
+* then the return origin returned by \a TEEC_OpenSession or
+* \a TEEC_InvokeCommand MUST be \a TEE_ORIGIN_TRUSTED_APP,
+* and the return code is defined by the Trusted Application‟s protocol.
+* If possible, Trusted Applications SHOULD use \a TEEC_ERROR_CANCEL
+* for their return code, but it is accepted that this is not always
+* possible due to conflicts with existing return code definitions in
+* other standards.
 *
-* Note that this function may decode a NULL array and a zero length array 
-* as valid types. In the former case the return value is NULL 
-* and the length is zero. In the second case the return value is non-NULL 
-* and the length is zero – the pointer must not be dereferenced by the client.
-*
-* The decoder may return errors in the following situations:\n
-*       • There are no more items in the decoder.\n
-*       • The item in the decoder is not of the type requested.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*       Calling with psOperation set to NULL.\n
-*       Calling with psOperation pointing to an operation not in the state 
-*           TEE_STATE_DECODE. \n
-*       Calling with puiLength set to NULL.\n
-*
-* Output:\n
-* This function will set the state of the decoder to TEE_ERROR_DECODE_NO_DATA
-* if there is no further data to decode.
-*
-* This function may optionally check the type of the data returned, 
-* and may set the state of the decoder to TEE_ERROR_DECODE_TYPE
-* if there is a type mismatch. The presence of type checking in the library is
-* implementation-defined; to ensure safety, clients must check the value of 
-* returned data to ensure that it meets any critical criteria.
-*
-* @param ps_operation - The operation from which we are decoding the array.
-* @param plength - The pointer to the variable that will contain the 
-* array length on exit.
-*
-* @return  - The value of the data item on success, 0 on any error.
+* @param operation: A pointer to a Client Application instantiated
+* Operation structure.
 */
-void* tee_decode_array_space(tee_operation_t* ps_operation, uint32_t *plength);
-
-
+void TEEC_RequestCancellation(
+    TEEC_Operation* operation);
 
 /**
-* @brief Returns the decoder stream data type
+* @brief Returns error string.
 *
-* This function returns the type of the data at the current offset 
-* in the decoder stream.
+* This function returns the error string value based on error number and
+* return origin.
 *
-* This function does not affect the error state of the decoder.
-* 
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*       Calling with psOperation set to NULL.\n
-*       Calling with psOperation pointing to an operation not in the state 
-*           TEE_STATE_DECODE.\n
+* @param error:  Error number.
+* @param returnOrigin:  Origin of the return.
 *
-* @param ps_operation - The operation from which we are retrieving the result.
+* @return char*: Error string value.
 *
-* @return -  TEE_TYPE_NONE: There is no more data.\n
-*       TEE_TYPE_UINT32: The next item in the decode stream is a uint32.\n
-*       TEE_TYPE_ARRAY: The next item in the decode string is an array.\n
 */
-uint32_t tee_decode_get_type(tee_operation_t* ps_operation);
+char* TEEC_GetError(int error, int returnOrigin);
 
-/**
-* @brief Get decode error
-*
-* This function returns the error state of the decoder associated 
-* with the given operation.
-*
-* This function does not affect the error state of the decoder.
-*
-* Undefined Behavior\n
-* The following situations result in UNDEFINED behavior:\n
-*       Calling with psOperation set to NULL.\n
-*       Calling with psOperation pointing to an operation not in the state 
-*           TEE_STATE_DECODE.
-*
-* @param ps_operation - The operation from which we are retrieving the result.
-*
-* @return - TEE_SUCCESS: There have been no decoding errors.\n
-*           TEE_ERROR_*: The first decoder error to occur.
-*/
-tee_return_t tee_decode_get_error(tee_operation_t* ps_operation);
 
 #endif

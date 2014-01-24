@@ -24,15 +24,16 @@
  *
  */
 
-//#include <linux/kernel.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/types.h>
 //#include <linux/slab.h>
-//#include <linux/module.h>
-//#include <linux/fs.h>
-//#include <linux/platform_device.h>
+#include <linux/platform_device.h>
 //#include <linux/debugfs.h>
 //#include <linux/cdev.h>
 //#include <linux/uaccess.h>
-//#include <linux/sched.h>
+#include <linux/sched.h> 				// For current variable
 //#include <linux/list.h>
 //#include <linux/mutex.h>
 //#include <linux/io.h>
@@ -41,19 +42,29 @@
 //#include <asm/cacheflush.h>
 //
 //
-//#include <otz_client.h>
+/*Includes of driver dependent */
+#include <driver/tee_client_driver.h>
 //#include <otz_common.h>
 //#include <otz_id.h>
 //#include <smc_id.h>
-//
+//sa
 //#define ROUND_UP(N, S) ((((N) + (S) - 1) / (S)) * (S))
 //
 //
-//static struct class *driver_class;
-//static dev_t otz_client_device_no;
+
+/**
+ * Globla variable for device class
+ */
+static struct class *driver_class;
+
+/**
+ * Device <major,minor>
+ */
+static dev_t tee_driver_device_no;
+
 //static struct cdev otz_client_cdev;
 //
-//static u32 cacheline_size;
+static u32 cacheline_size;
 //static u32 device_file_cnt = 0;
 //
 //static struct otz_smc_cdata otz_smc_cd[NR_CPUS];
@@ -848,9 +859,9 @@
 // *
 // * @return
 // */
-//static int otz_client_mmap(struct file *filp, struct vm_area_struct *vma)
-//{
-//    int ret = 0;
+static int tee_driver_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    int ret = 0;
 //    otzc_shared_mem *mem_new;
 //    u32*  alloc_addr;
 //    long length = vma->vm_end - vma->vm_start;
@@ -899,8 +910,8 @@
 //    list_add_tail( &mem_new->head ,&temp_dev_file->dev_shared_mem_head.shared_mem_list);
 //
 //return_func:
-//    return ret;
-//}
+    return ret;
+}
 //
 ///**
 // * @brief
@@ -1190,8 +1201,8 @@
  *
  * @return
  */
-static int otz_client_encode_uint32(void* private_data, void* argp)
-{
+//static int otz_client_encode_uint32(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd enc;
 //    int ret = 0;
 //    otzc_session *session;
@@ -1276,7 +1287,7 @@ static int otz_client_encode_uint32(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1285,8 +1296,8 @@ static int otz_client_encode_uint32(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_encode_array(void* private_data, void* argp)
-{
+//static int otz_client_encode_array(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd enc;
 //    int ret = 0;
 //    otzc_encode *enc_context;
@@ -1377,7 +1388,7 @@ static int otz_client_encode_array(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1386,8 +1397,8 @@ static int otz_client_encode_array(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_encode_mem_ref(void* private_data, void* argp)
-{
+//static int otz_client_encode_mem_ref(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd enc;
 //    int ret = 0, shared_mem_found = 0;
 //    otzc_encode *enc_context;
@@ -1507,7 +1518,7 @@ static int otz_client_encode_mem_ref(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 
 /**
@@ -1518,10 +1529,10 @@ static int otz_client_encode_mem_ref(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_prepare_decode(void* private_data,
-                                     struct otz_client_encode_cmd *dec,
-                                     otzc_encode **pdec_context)
-{
+//static int otz_client_prepare_decode(void* private_data,
+//                                     struct otz_client_encode_cmd *dec,
+//                                     otzc_encode **pdec_context)
+//{
 //    otzc_dev_file *temp_dev_file;
 //    otzc_service *temp_svc;
 //    otzc_session *temp_ses;
@@ -1574,7 +1585,7 @@ static int otz_client_prepare_decode(void* private_data,
 //    *pdec_context = dec_context;
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1583,8 +1594,8 @@ static int otz_client_prepare_decode(void* private_data,
  *
  * @return
  */
-static int otz_client_decode_uint32(void* private_data, void* argp)
-{
+//static int otz_client_decode_uint32(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd dec;
 //    int ret = 0;
 //    otzc_encode *dec_context;
@@ -1623,7 +1634,7 @@ static int otz_client_decode_uint32(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1632,8 +1643,8 @@ static int otz_client_decode_uint32(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_decode_array_space(void* private_data, void* argp)
-{
+//static int otz_client_decode_array_space(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd dec;
 //    int ret = 0;
 //    otzc_encode *dec_context;
@@ -1718,7 +1729,7 @@ static int otz_client_decode_array_space(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1727,8 +1738,8 @@ static int otz_client_decode_array_space(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_get_decode_type(void* private_data, void* argp)
-{
+//static int otz_client_get_decode_type(void* private_data, void* argp)
+//{
 //    struct otz_client_encode_cmd dec;
 //    int ret = 0;
 //    otzc_encode *dec_context;
@@ -1764,7 +1775,7 @@ static int otz_client_get_decode_type(void* private_data, void* argp)
 //
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1773,8 +1784,8 @@ static int otz_client_get_decode_type(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_shared_mem_alloc(void* private_data, void* argp)
-{
+//static int otz_client_shared_mem_alloc(void* private_data, void* argp)
+//{
 //    otzc_shared_mem* temp_shared_mem;
 //    struct otz_session_shared_mem_info mem_info;
 //
@@ -1833,7 +1844,7 @@ static int otz_client_shared_mem_alloc(void* private_data, void* argp)
 //    }
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1842,8 +1853,8 @@ static int otz_client_shared_mem_alloc(void* private_data, void* argp)
  *
  * @return
  */
-static int otz_client_shared_mem_free(void* private_data, void* argp)
-{
+//static int otz_client_shared_mem_free(void* private_data, void* argp)
+//{
 //    otzc_shared_mem* temp_shared_mem;
 //    struct otz_session_shared_mem_info mem_info;
 //
@@ -1905,7 +1916,7 @@ static int otz_client_shared_mem_free(void* private_data, void* argp)
 //    }
 //return_func:
 //    return ret;
-}
+//}
 
 /**
  * @brief
@@ -1916,10 +1927,10 @@ static int otz_client_shared_mem_free(void* private_data, void* argp)
  *
  * @return
  */
-static long otz_client_ioctl(struct file *file, unsigned cmd,
+static long tee_driver_ioctl(struct file *file, unsigned cmd,
         unsigned long arg)
 {
-//    int ret = -EINVAL;
+    int ret = -EINVAL;
 //    void *argp = (void __user *) arg;
 //
 //    switch (cmd) {
@@ -2042,7 +2053,7 @@ static long otz_client_ioctl(struct file *file, unsigned cmd,
 //    default:
 //        return -EINVAL;
 //    }
-//    return ret;
+    return ret;
 }
 
 /**
@@ -2053,9 +2064,9 @@ static long otz_client_ioctl(struct file *file, unsigned cmd,
  *
  * @return
  */
-static int otz_client_open(struct inode *inode, struct file *file)
+static int tee_driver_open(struct inode *inode, struct file *file)
 {
-//    int ret;
+    int ret;
 //    otzc_dev_file *new_dev;
 //
 //    device_file_cnt++;
@@ -2094,7 +2105,7 @@ static int otz_client_open(struct inode *inode, struct file *file)
 //    }
 //
 //ret_func:
-//    return ret;
+    return ret;
 }
 
 /**
@@ -2105,7 +2116,7 @@ static int otz_client_open(struct inode *inode, struct file *file)
  *
  * @return
  */
-static int otz_client_release(struct inode *inode, struct file *file)
+static int tee_driver_release(struct inode *inode, struct file *file)
 {
 //        u32 dev_file_id = (u32)file->private_data;
 //
@@ -2115,34 +2126,37 @@ static int otz_client_release(struct inode *inode, struct file *file)
 //    if(list_empty(&otzc_dev_file_head.dev_file_list)){
 //
 //    }
-//    return 0;
+    return 0;
 }
 
 /**
- * @brief
+ * @brief Init tee
  *
  * @return
  */
-static int otz_client_smc_init(void)
+static int tee_driver_smc_init(void)
 {
-//    u32 ctr;
-//
-//    asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
-//    cacheline_size =  4 << ((ctr >> 16) & 0xf);
-//
-//    return 0;
+    u32 ctr;
+
+    // Read cache type from coprocesor cp15 and store value on ctr
+    asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
+
+    // Select DMinLine from Cache type register
+    cacheline_size =  4 << ((ctr >> 16) & 0xf);
+
+    return 0;
 }
 
 
 /**
  * @brief
  */
-static const struct file_operations otz_client_fops = {
-//        .owner = THIS_MODULE,
-//        .unlocked_ioctl = otz_client_ioctl,
-//        .open = otz_client_open,
-//        .mmap = otz_client_mmap,
-//        .release = otz_client_release
+static const struct file_operations tee_driver_fops = {
+        .owner = THIS_MODULE,
+        .unlocked_ioctl = tee_driver_ioctl,
+        .open = tee_driver_open,
+        .mmap = tee_driver_mmap,
+        .release = tee_driver_release
 };
 
 /**
@@ -2150,28 +2164,31 @@ static const struct file_operations otz_client_fops = {
  *
  * @return
  */
-static int otz_client_init(void)
+static int __init tee_driver_init(void)
 {
-//    int ret_code = 0;
-//    struct device *class_dev;
-//
-//    TDEBUG("open otzclient init");
-//    otz_client_smc_init();
-//
-//    ret_code = alloc_chrdev_region(&otz_client_device_no, 0, 1,
-//                                                    OTZ_CLIENT_DEV);
-//    if (ret_code < 0) {
-//        TERR("alloc_chrdev_region failed %d", ret_code);
-//        return ret_code;
-//    }
-//
-//    driver_class = class_create(THIS_MODULE, OTZ_CLIENT_DEV);
-//    if (IS_ERR(driver_class)) {
-//        ret_code = -ENOMEM;
-//        TERR("class_create failed %d", ret_code);
-//        goto unregister_chrdev_region;
-//    }
-//
+    int ret_code = 0;
+    struct device *class_dev;
+
+    TDEBUG("Init tee driver");
+    tee_driver_smc_init();
+
+    // Connecting device file with device driver
+    // Registering for the <freemajor, 0> range of 1 device files with name TEE_CLIENT_DEV
+    ret_code = alloc_chrdev_region(&tee_driver_device_no, 0, 1,
+    		TEE_DRIVER_DEV);
+    if (ret_code < 0) {
+
+        TERR("alloc_chrdev_region failed %d", ret_code);
+        return ret_code;
+    }
+
+    driver_class = class_create(THIS_MODULE, TEE_DRIVER_DEV);
+    if (IS_ERR(driver_class)) {
+        ret_code = -ENOMEM;
+        TERR("class_create failed %d", ret_code);
+        goto unregister_chrdev_region;
+    }
+
 //    class_dev = device_create(driver_class, NULL, otz_client_device_no, NULL,
 //            OTZ_CLIENT_DEV);
 //    if (!class_dev) {
@@ -2202,26 +2219,26 @@ static int otz_client_init(void)
 //    device_destroy(driver_class, otz_client_device_no);
 //class_destroy:
 //    class_destroy(driver_class);
-//unregister_chrdev_region:
-//    unregister_chrdev_region(otz_client_device_no, 1);
-//return_fn:
-//    return ret_code;
+unregister_chrdev_region:
+    unregister_chrdev_region(tee_driver_device_no, 1);
+return_fn:
+    return ret_code;
 }
 
 /**
  * @brief
  */
-static void otz_client_exit(void)
+static void __exit tee_driver_exit(void)
 {
-//    TDEBUG("tee_client exit");
-//
+    TDEBUG("tee_driver exit");
+
 //    device_destroy(driver_class, otz_client_device_no);
 //    class_destroy(driver_class);
-//    unregister_chrdev_region(otz_client_device_no, 1);
+    unregister_chrdev_region(tee_driver_device_no, 1);
 }
 
 
-MODULE_LICENSE("GPL v3");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Pablo Anton  <pablo.anton-del-pino@technicolor.com>");
 MODULE_DESCRIPTION("TEE TrustZone Communicator");
 MODULE_VERSION("1.00");
