@@ -29,6 +29,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/*
+ * Maximum number of bytes for a share memory region
+ */
+#define TEEC_CONFIG_SHAREDMEM_MAX_SIZE 10000
+
 /**
  * @brief This type is used to contain return codes which are the results of invoking TEE Client API
  * functions
@@ -188,10 +193,6 @@ and is tagged as input. */
  * @brief
  */
 typedef struct TEEC_Operation TEEC_Operation;
-/**
- * @brief 
- */
-typedef struct TEEC_Session TEEC_Session;
 
 /**
  * @brief 
@@ -245,20 +246,11 @@ typedef struct TEEC_Context
 * related to a session between a client and a service.
 *
 */
-struct TEEC_Session
+typedef struct TEEC_Session
 {
-/*! Implementation-defined variables */
-/*! Reference count of operations*/
-    int operation_cnt;
-/*! Session id obtained for the  service*/
-    int session_id;
-/*! Unique service id */
-    int service_id;
-/*! Device context */
-    TEEC_Context* device;
-/*! Service error number */
-    int s_errno;
-};
+	TEEC_IMP_Session imp;
+
+}TEEC_Session;
 
 
 /**

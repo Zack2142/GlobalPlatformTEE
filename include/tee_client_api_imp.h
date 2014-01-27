@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include <list.h>
 
+#define TEE_DEBUG
+
 #define TYPE_UINT_DEFINED 1
 
 #define MAX_SESSIONS_PER_DEVICE 16
@@ -50,5 +52,35 @@ typedef struct	TEEC_IMP_Context {
     /*! Error number from the client driver */
     int s_errno;
 }TEEC_IMP_Context;
+
+typedef struct	TEEC_IMP_Session {
+/*! Implementation-defined variables */
+/*! Reference count of operations*/
+    int operation_cnt;
+/*! Session id obtained for the  service*/
+    int session_id;
+/*! Unique service id */
+    int service_id;
+/*! Device context */
+    TEEC_IMP_Context* device;
+/*! Service error number */
+    int s_errno;
+}TEEC_IMP_Session;
+
+/**
+* @brief Shared memory flag constants
+*
+*
+*/
+enum tee_shared_mem_flags {
+/*! Service can only read from the memory block.*/
+    TEE_MEM_SERVICE_RO = 0x0,
+/*! Service can only write from the memory block.*/
+    TEE_MEM_SERVICE_WO ,
+/*! Service can read and write from the memory block.*/
+    TEE_MEM_SERVICE_RW,
+/*! Invalid flag */
+    TEE_MEM_SERVICE_UNDEFINED
+};
 
 #endif //__TEE_CLIENT_API_IMP_H_

@@ -1,6 +1,6 @@
 # Makefile to compile TEE Client API library and generate
 # libteeclientapi.so
-CFLAGS=-g -mcpu=cortex-a8
+CFLAGS=-g -mcpu=cortex-a8 -fPIC -DTEE_LIB_DEBUG
 
 
 ifdef CROSS_COMPILE
