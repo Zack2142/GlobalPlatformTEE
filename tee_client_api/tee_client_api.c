@@ -28,10 +28,53 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
-
+#include <sys/mman.h>	// For PROT_READ PROT_WRITE
 #include <tee_client_api.h>
 #include <driver/tee_client_driver_common.h>
 
+
+
+/**
+* @brief Service error string values
+*/
+static const char* TEEC_service_errorlist[] =
+{
+    "Service Success",
+    "Service Pending",
+    "Service Interrupted",
+    "Service Error",
+    "Service - Invalid Argument",
+    "Service -Invalid Address",
+    "Service No Support",
+    "Service No Memory",
+};
+
+/**
+* @brief TEEC error string values
+*
+*/
+static const char* TEEC_errorlist[] =
+{
+    "The operation succeeded",
+    "Non-specific cause",
+    "Access privileges are not sufficient",
+    "The operation was cancelled",
+    "Concurrent accesses caused conflict",
+    "Too much data for the requested operation was passed",
+    "Input data was of invalid format",
+    "Input parameters were invalid",
+    "Operation is not valid in the current state",
+    "The requested data item is not found",
+    "The requested operation should exist but is not yet implemented",
+    "The requested operation is valid but is not supported in this \
+Implementation",
+    "Expected data was missing",
+    "System ran out of resources",
+    "The system is busy working on something else",
+    "Communication with a remote party failed",
+    "A security fault was detected",
+    "The supplied buffer is too short for the generated output",
+};
 /**
 * @brief Returns error string.
 *
@@ -46,10 +89,10 @@
 */
 char* TEEC_GetError(int error, int returnOrigin)
 {
-//    if(returnOrigin == TEEC_ORIGIN_TRUSTED_APP)
-//        return (char*)TEEC_service_errorlist[error];
-//    else
-//        return (char*)TEEC_errorlist[error];
+    if(returnOrigin == TEEC_ORIGIN_TRUSTED_APP)
+        return (char*)TEEC_service_errorlist[error];
+    else
+        return (char*)TEEC_errorlist[error];
 }
 
 /**
@@ -73,14 +116,13 @@ TEEC_Result TEEC_InitializeContext(
     char temp_name[256];
 
     if(context == NULL) {
-        printf("TEEC_InitializeContext : Context is null\n");
+        perror("TEEC_InitializeContext : Context is null\n");
         return TEEC_ERROR_BAD_PARAMETERS;
     }
 
     if(name == NULL) {
-#ifdef TEE_LIB_DEBUG
-        printf("TEEC_InitializeContext: %s is assigned as default context\n", TEE_CLIENT_FULL_PATH_DEV_NAME);
-#endif
+        TDEBUG(" %s is assigned as default context", TEE_CLIENT_FULL_PATH_DEV_NAME);
+
         strcpy(temp_name, TEE_CLIENT_FULL_PATH_DEV_NAME);
     } else {
         strcpy(temp_name, name);
@@ -99,9 +141,7 @@ TEEC_Result TEEC_InitializeContext(
         INIT_LIST_HEAD(&context->imp.shared_mem_list);
     }
 
-#ifdef TEE_LIB_DEBUG
-    printf("TEEC_InitializeContext success\n");
-#endif
+    TDEBUG("TEEC_InitializeContext success");
 
     return TEEC_SUCCESS;
 }
@@ -172,9 +212,10 @@ TEEC_Result TEEC_AllocateSharedMemory(
 
     mmap_flags = PROT_READ | PROT_WRITE;
 
+    // This will call mmap of our driver
     sharedMem->buffer = mmap(0, sharedMem->size,
                         mmap_flags , MAP_SHARED,
-                        context->fd, 0);
+                        context->imp.fd, 0);
 
     if(sharedMem->buffer == MAP_FAILED) {
         perror("TEEC_AllocateSharedMemory - mmap failed\n");
@@ -187,8 +228,8 @@ TEEC_Result TEEC_AllocateSharedMemory(
     sharedMem->operation_count = 0;
 
     INIT_LIST_HEAD(&sharedMem->head_ref);
-    list_add_tail(&context->shared_mem_list, &sharedMem->head_ref);
-    context->shared_mem_cnt++;
+    list_add_tail(&context->imp.shared_mem_list, &sharedMem->head_ref);
+    context->imp.shared_mem_cnt++;
     return TEEC_SUCCESS;
 
 }
@@ -207,30 +248,30 @@ TEEC_Result TEEC_RegisterSharedMemory(
     TEEC_Context*      context,
     TEEC_SharedMemory* sharedMem)
 {
-//    if(context == NULL || sharedMem == NULL ) {
-//        printf("TEEC_AllocateSharedMemory : Error Illegal argument\n");
-//        return TEEC_ERROR_BAD_PARAMETERS;
-//    }
-//
-//    if((sharedMem->size == 0) ||
-//        ((sharedMem->flags != TEEC_MEM_INPUT) &&
-//         (sharedMem->flags != TEEC_MEM_OUTPUT) &&
-//         (sharedMem->flags != (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT)))) {
-//        printf("TEEC_AllocateSharedMemory : Error Illegal argument\n");
-//        return TEEC_ERROR_BAD_PARAMETERS;
-//    }
-//
-//    if(sharedMem->buffer == NULL) {
-//        printf("TEEC_RegisterSharedMemory :shared memory buffer is NULL\n");
-//        return TEEC_ERROR_BAD_PARAMETERS;
-//    }
-//    sharedMem->allocated = 0;
-//    sharedMem->context = context;
-//    sharedMem->operation_count = 0;
-//
-//    INIT_LIST_HEAD(&sharedMem->head_ref);
-//    list_add_tail(&context->shared_mem_list, &sharedMem->head_ref);
-//    context->shared_mem_cnt++;
+    if(context == NULL || sharedMem == NULL ) {
+        printf("TEEC_AllocateSharedMemory : Error Illegal argument\n");
+        return TEEC_ERROR_BAD_PARAMETERS;
+    }
+
+    if((sharedMem->size == 0) ||
+        ((sharedMem->flags != TEEC_MEM_INPUT) &&
+         (sharedMem->flags != TEEC_MEM_OUTPUT) &&
+         (sharedMem->flags != (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT)))) {
+        printf("TEEC_AllocateSharedMemory : Error Illegal argument\n");
+        return TEEC_ERROR_BAD_PARAMETERS;
+    }
+
+    if(sharedMem->buffer == NULL) {
+        printf("TEEC_RegisterSharedMemory :shared memory buffer is NULL\n");
+        return TEEC_ERROR_BAD_PARAMETERS;
+    }
+    sharedMem->allocated = 0;
+    sharedMem->context = context;
+    sharedMem->operation_count = 0;
+
+    INIT_LIST_HEAD(&sharedMem->head_ref);
+    list_add_tail(&context->imp.shared_mem_list, &sharedMem->head_ref);
+    context->imp.shared_mem_cnt++;
     return TEEC_SUCCESS;
 
 }
@@ -243,39 +284,39 @@ TEEC_Result TEEC_RegisterSharedMemory(
 void TEEC_ReleaseSharedMemory(
     TEEC_SharedMemory* sharedMem)
 {
-//    struct list *l;
-//    TEEC_SharedMemory* tempSharedMem;
-//    int found = 0;
-//
-//    if(sharedMem == NULL){
-//        return;
-//    }
-//    if(sharedMem->operation_count != 0) {
-//        printf("TEEC_ReleaseSharedMemory - pending operations count %d\n",
-//                sharedMem->operation_count);
-//        return;
-//    }
-//
-//    if(sharedMem->allocated) {
-//        munmap(sharedMem->buffer, sharedMem->size);
-//    }
-//
-//    sharedMem->buffer = NULL;
-//    sharedMem->size = 0;
-//
-//    list_for_each(l, &sharedMem->context->shared_mem_list) {
-//        tempSharedMem = list_entry(l, TEEC_SharedMemory, head_ref);
-//        if (tempSharedMem == sharedMem) {
-//            found = 1;
-//            break;
-//        }
-//    }
-//
-//    if(found) {
-//        list_del(&sharedMem->head_ref);
-//        sharedMem->context->shared_mem_cnt--;
-//    }
-//    sharedMem->context = NULL;
+	struct list_head *l;
+    TEEC_SharedMemory* tempSharedMem;
+    int found = 0;
+
+    if(sharedMem == NULL){
+        return;
+    }
+    if(sharedMem->operation_count != 0) {
+        printf("TEEC_ReleaseSharedMemory - pending operations count %d\n",
+                sharedMem->operation_count);
+        return;
+    }
+
+    if(sharedMem->allocated) {
+        munmap(sharedMem->buffer, sharedMem->size);
+    }
+
+    sharedMem->buffer = NULL;
+    sharedMem->size = 0;
+
+    list_for_each(l, &sharedMem->context->imp.shared_mem_list) {
+        tempSharedMem = list_entry(l, TEEC_SharedMemory, head_ref);
+        if (tempSharedMem == sharedMem) {
+            found = 1;
+            break;
+        }
+    }
+
+    if(found) {
+        list_del(&sharedMem->head_ref);
+        sharedMem->context->imp.shared_mem_cnt--;
+    }
+    sharedMem->context = NULL;
 }
 
 /**
@@ -389,33 +430,33 @@ TEEC_Result TEEC_OpenSession (
 void TEEC_CloseSession (
     TEEC_Session* session)
 {
-//    int ret = 0;
-//    service_session_id_t ses_close;
-//
-//    if(session == NULL) {
-//        printf("TEEC_CloseSession: Warning: Session pointer is NULL\n");
-//        return;
-//    }
-//
-//    if(session->operation_cnt) {
-//        printf("TEEC_CloseSession: Warning: Pending operations %d\n",
-//            session->operation_cnt);
-//        return;
-//    }
-//    ses_close.service_id = session->service_id ;
-//    ses_close.session_id = session->session_id ;
-//
-//    ret = ioctl(session->device->fd,
-//                TEE_CLIENT_IOCTL_SES_CLOSE_REQ, &ses_close);
-//
-//    if(ret == 0){
-//        session->device->session_count--;
-//        session->device = NULL;
-//        session->session_id = -1;
-//    }
-//    else {
-//        perror("TEEC_CloseSession: Session client close request failed\n");
-//    }
+    int ret = 0;
+    service_session_id_t ses_close;
+
+    if(session == NULL) {
+        printf("TEEC_CloseSession: Warning: Session pointer is NULL\n");
+        return;
+    }
+
+    if(session->imp.operation_cnt) {
+        printf("TEEC_CloseSession: Warning: Pending operations %d\n",
+            session->imp.operation_cnt);
+        return;
+    }
+    ses_close.service_id = session->imp.service_id ;
+    ses_close.session_id = session->imp.session_id ;
+
+    ret = ioctl(session->imp.device->fd,
+                TEE_CLIENT_IOCTL_SES_CLOSE_REQ, &ses_close);
+
+    if(ret == 0){
+        session->imp.device->session_count--;
+        session->imp.device = NULL;
+        session->imp.session_id = -1;
+    }
+    else {
+        perror("TEEC_CloseSession: Session client close request failed\n");
+    }
 }
 
 /**
@@ -530,8 +571,7 @@ TEEC_Result TEEC_InvokeCommand(
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         session->imp.s_errno = errno;
-                        perror(
-                            "TEEC_InvokeCommand: encoding value data failed\n");
+                        perror("TEEC_InvokeCommand: encoding value data failed\n");
                         break;
                     }
                     if(inout == 2) {
@@ -567,8 +607,7 @@ TEEC_Result TEEC_InvokeCommand(
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     ret = TEEC_ERROR_NO_DATA;
-                    printf("TEEC_InvokeCommand: \
-memory reference parent data is NULL\n");
+                    printf("TEEC_InvokeCommand: memory reference parent data is NULL\n");
                     break;
                 }
 
@@ -588,7 +627,7 @@ memory reference parent data is NULL\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         ret = TEEC_ERROR_BAD_FORMAT;
-                    printf("TEEC_InvokeCommand: memory reference direction is invalid\n");
+                        TDEBUG("memory reference direction is invalid");
                         break;
                     }
                 }
@@ -599,7 +638,7 @@ memory reference parent data is NULL\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         ret = TEEC_ERROR_BAD_FORMAT;
-                    printf("TEEC_InvokeCommand: memory reference direction is invalid\n");
+                    TDEBUG("TEEC_InvokeCommand: memory reference direction is invalid");
                         break;
                     }
                     if(!(operation->params[param_count].memref.parent->flags
@@ -607,7 +646,7 @@ memory reference parent data is NULL\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         ret = TEEC_ERROR_BAD_FORMAT;
-                    printf("TEEC_InvokeCommand: memory reference direction is invalid\n");
+                        TDEBUG("memory reference direction is invalid");
                         break;
                     }
                 }
@@ -622,47 +661,40 @@ memory reference parent data is NULL\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         ret = TEEC_ERROR_EXCESS_DATA;
-                    printf("TEEC_InvokeCommand: memory reference offset + size is greater than the actual memory size\n");
+                        TDEBUG(" memory reference offset + size is greater than the actual memory size");
                         break;
                     }
                 }
 
+                // For all cases except TEEC_MEMREF_WHOLE
+                enc.len  = operation->params[param_count].memref.size;
+                enc.offset = operation->params[param_count].memref.offset;
+
                 if(param_types[param_count] == TEEC_MEMREF_PARTIAL_INPUT) {
                     inout = 0;
                 }
-                else if(param_types[param_count]
-                            == TEEC_MEMREF_PARTIAL_OUTPUT) {
+                else if(param_types[param_count] == TEEC_MEMREF_PARTIAL_OUTPUT) {
                     inout = 1;
                 }
-                else if(param_types[param_count]
-                            == TEEC_MEMREF_PARTIAL_INOUT) {
+                else if(param_types[param_count] == TEEC_MEMREF_PARTIAL_INOUT) {
                     inout = 2;
                 }
                 else if(param_types[param_count] == TEEC_MEMREF_WHOLE) {
 
-                    if(operation->
-                            params[param_count].memref.parent->flags ==
-                            (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT))
+                	enc.len = operation-> params[param_count].memref.parent->size;
+                	enc.offset = 0;
+
+                    if(operation->params[param_count].memref.parent->flags
+                    		== (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT))
                         inout = 2;
-                    else if(operation->
-                            params[param_count].memref.parent->flags ==
-                            TEEC_MEM_INPUT)
+                    else if(operation-> params[param_count].memref.parent->flags
+                    		== TEEC_MEM_INPUT)
                         inout = 0;
-                    else if(operation->
-                            params[param_count].memref.parent->flags ==
-                            TEEC_MEM_OUTPUT)
+                    else if(operation-> params[param_count].memref.parent->flags
+                    		== TEEC_MEM_OUTPUT)
                         inout = 1;
                 }
 
-                if(param_types[param_count] == TEEC_MEMREF_WHOLE) {
-                    enc.len = operation->
-                                params[param_count].memref.parent->size;
-                    enc.offset = 0;
-                }
-                else {
-                    enc.len  = operation->params[param_count].memref.size;
-                    enc.offset = operation->params[param_count].memref.offset;
-                }
 
                 if(inout == 0) {
                     enc.flags = TEE_MEM_SERVICE_RO;
@@ -678,39 +710,39 @@ memory reference parent data is NULL\n");
                 }
 
                 if(operation->params[param_count].memref.parent->allocated) {
-                    enc.data =
-                        operation->params[param_count].memref.parent->buffer;
-
+                    enc.data =operation->params[param_count].memref.parent->buffer;
                     ret = ioctl(session->imp.device->fd,
                                 TEE_CLIENT_IOCTL_ENC_MEM_REF, &enc);
-                }
-                else {
+                } else {
                     enc.data =
                         (void*) ((uint32_t)operation->params[param_count].
                                 memref.parent->buffer +
                                 enc.offset);
                     enc.offset = 0;
+
+
+                    //TODO
                     ret = ioctl(session->imp.device->fd,
                                 TEE_CLIENT_IOCTL_ENC_ARRAY, &enc);
                 }
+
                 if (ret){
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-encoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: encoding data in client driver failed\n");
                     break;
-                }
-                else {
+                } else {
 /*                     operation->
                         params[param_count].memref.parent->operation_count++; */
                 }
+
+                // If is input/output parameter, treat as output
                 if(inout == 2) {
                     enc.flags = TEE_MEM_SERVICE_WO;
                     enc.param_type = TEEC_PARAM_OUT;
 
-                    if(operation->
-                        params[param_count].memref.parent->allocated) {
+                    if(operation-> params[param_count].memref.parent->allocated) {
                         ret = ioctl(session->imp.device->fd,
                                     TEE_CLIENT_IOCTL_ENC_MEM_REF, &enc);
                     }
@@ -723,8 +755,7 @@ encoding data in client driver failed\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-encoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: encoding data in client driver failed\n");
                         break;
                     }
                 }
@@ -737,8 +768,7 @@ encoding data in client driver failed\n");
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     ret = TEEC_ERROR_NO_DATA;
-                    printf("TEEC_InvokeCommand: \
-temporary memory reference buffer is NULL\n");
+                    TDEBUG("temporary memory reference buffer is NULL");
                     break;
                 }
                 /* This is a variation of API spec. */
@@ -746,39 +776,29 @@ temporary memory reference buffer is NULL\n");
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     ret = TEEC_ERROR_NO_DATA;
-                    printf("TEEC_InvokeCommand: \
-temporary memory reference size zero is not supported\n");
+                    TDEBUG("temporary memory reference size zero is not supported");
                     break;
                 }
 
                 if(param_types[param_count] == TEEC_MEMREF_TEMP_INPUT) {
                     inout = 0;
-                }
-                else if(param_types[param_count]
-                            == TEEC_MEMREF_TEMP_OUTPUT) {
-                    inout = 1;
-                }
-                else if(param_types[param_count]
-                            == TEEC_MEMREF_TEMP_INOUT) {
-                    inout = 2;
-                }
-                enc.len  = operation->params[param_count].tmpref.size;
-
-                if(inout == 0) {
                     enc.flags = TEE_MEM_SERVICE_RO;
                     enc.param_type = TEEC_PARAM_IN;
                 }
-                else if(inout == 1) {
+                else if(param_types[param_count] == TEEC_MEMREF_TEMP_OUTPUT) {
+                    inout = 1;
                     enc.flags = TEE_MEM_SERVICE_WO;
                     enc.param_type = TEEC_PARAM_OUT;
                 }
-                else if(inout == 2) {
+                else if(param_types[param_count] == TEEC_MEMREF_TEMP_INOUT) {
+                    inout = 2;
                     enc.flags = TEE_MEM_SERVICE_RO;
                     enc.param_type = TEEC_PARAM_IN;
                 }
 
-                enc.data =
-                    operation->params[param_count].tmpref.buffer;
+                enc.len  = operation->params[param_count].tmpref.size;
+                enc.data = operation->params[param_count].tmpref.buffer;
+
                 ret = ioctl(session->imp.device->fd,
                             TEE_CLIENT_IOCTL_ENC_ARRAY, &enc);
 
@@ -786,11 +806,11 @@ temporary memory reference size zero is not supported\n");
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-encoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: encoding data in client driver failed\n");
                     break;
                 }
 
+                // If param is input/output change flasgs and enc again as output
                 if(inout == 2) {
                     enc.flags = TEE_MEM_SERVICE_WO;
                     enc.param_type = TEEC_PARAM_OUT;
@@ -801,9 +821,9 @@ encoding data in client driver failed\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-encoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: encoding data inout in client driver failed\n");
                         break;
+
                     }
                 }
             } /* end if for temp reference */
@@ -811,14 +831,15 @@ encoding data in client driver failed\n");
     } /* end paramtype */
 
     if(ret) {
-        printf("error in encoding the data\n");
+    	TDEBUG("error in encoding the data");
         goto operation_release;
     }
 
     /* Invoke the command */
     ret = ioctl(session->imp.device->fd, TEE_CLIENT_IOCTL_SEND_CMD_REQ, &enc);
 
-    if(ret < 0){
+    if(ret < 0)
+    {
         if(returnOrigin)
             *returnOrigin = TEEC_ORIGIN_API;
 
@@ -829,26 +850,21 @@ encoding data in client driver failed\n");
         if(ret == -EINVAL)
          ret = TEEC_ERROR_BAD_PARAMETERS;
 
-        perror("TEEC_InvokeCommand: \
-command submission in client driver failed\n");
-    }
-    else if(ret > 0) {
+        perror("TEEC_InvokeCommand: command submission in client driver failed\n");
+        goto operation_release;
+    } else if(ret > 0) {
         if(returnOrigin)
             *returnOrigin = TEEC_ORIGIN_TRUSTED_APP;
 
         /* check the service error code match with global platform
             error constants */
-        printf("TEEC_InvokeCommand: \
-command submission failed in trusted application - %s\n",
-        TEEC_GetError(ret, TEEC_ORIGIN_TRUSTED_APP));
-    }
+        TDEBUG("command submission failed in trusted application - %s\n", TEEC_GetError(ret, TEEC_ORIGIN_TRUSTED_APP));
 
-    if(ret != 0) {
         goto operation_release;
     }
 
 
-/* Decode the data */
+    /* Decode the data */
     if(operation->paramTypes != 0) {
         for(param_count = 0; param_count < 4; param_count++) {
 
@@ -862,8 +878,7 @@ command submission failed in trusted application - %s\n",
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-decoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: decoding data in client driver failed\n");
                     break;
                 }
 
@@ -877,8 +892,7 @@ decoding data in client driver failed\n");
                         if(returnOrigin)
                             *returnOrigin = TEEC_ORIGIN_API;
                         session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-decoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: decoding data in client driver failed\n");
                         break;
                     }
                     operation->params[param_count].value.b =
@@ -894,12 +908,10 @@ decoding data in client driver failed\n");
                 inout = 2;
 
                 if(param_types[param_count] == TEEC_MEMREF_WHOLE) {
-                    if(operation->
-                            params[param_count].memref.parent->flags ==
+                    if(operation->params[param_count].memref.parent->flags ==
                             (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT))
                         inout = 2;
-                    else if(operation
-                            ->params[param_count].memref.parent->flags ==
+                    else if(operation->params[param_count].memref.parent->flags ==
                             TEEC_MEM_INPUT)
                         inout = 0;
                     else if(operation
@@ -917,8 +929,7 @@ decoding data in client driver failed\n");
                     if(returnOrigin)
                         *returnOrigin = TEEC_ORIGIN_API;
                     session->imp.s_errno = errno;
-                    perror("TEEC_InvokeCommand: \
-decoding data in client driver failed\n");
+                    perror("TEEC_InvokeCommand: decoding data in client driver failed\n");
                     break;
                 }
 
@@ -937,6 +948,8 @@ decoding data in client driver failed\n");
     if(ret != TEEC_SUCCESS) {
         printf("error in decoding the data\n");
     }
+
+
 operation_release:
     /* release the operation */
     rel_ret = ioctl(session->imp.device->fd,

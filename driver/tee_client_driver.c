@@ -108,13 +108,13 @@ static DEFINE_MUTEX(smc_lock);
  */
 static DEFINE_MUTEX(encode_cmd_lock);
 
-///**
-// * @brief
-// *
-// * @param decode_cmd_lock
-// */
-//static DEFINE_MUTEX(decode_cmd_lock);
-//
+/**
+ * @brief Mutex variable to protect mutual access to decode command ioctl function
+ *
+ * @param decode_cmd_lock
+ */
+static DEFINE_MUTEX(decode_cmd_lock);
+
 /**
  * @brief Mutex to handle open session mutual exclusion
  *
@@ -122,12 +122,12 @@ static DEFINE_MUTEX(encode_cmd_lock);
  */
 static DEFINE_MUTEX(ses_open_lock);
 
-///**
-// * @brief
-// *
-// * @param ses_close_lock
-// */
-//static DEFINE_MUTEX(ses_close_lock);
+/**
+ * @brief Mutex variable to protect mutual access to close session command ioctl function
+ *
+ * @param ses_close_lock
+ */
+static DEFINE_MUTEX(ses_close_lock);
 //
 ///**
 // * @brief
@@ -186,20 +186,7 @@ static DEFINE_MUTEX(ses_open_lock);
 //
 //
 //
-///**
-// * @brief
-// */
-//typedef struct otzc_shared_mem{
-//
-//    struct list_head head;
-//    struct list_head s_head;
-//
-//    void* index;
-//
-//    void* k_addr;
-//    void* u_addr;
-//    u32  len;
-//} otzc_shared_mem;
+
 //
 
 // Implicit declaration
@@ -217,11 +204,12 @@ static int tee_client_prepare_encode(void* private_data,
  */
 static u32 _tee_smc(u32 cmd_addr)
 {
-	flush_cache_all();
+	 flush_cache_all();
 
-    register u32 r0 asm("r0") = CALL_TEE_API;
+	register u32 r0 asm("r0") = CALL_TEE_API;
     register u32 r1 asm("r1") = cmd_addr;
     register u32 r2 asm("r2") = TEE_CMD_TYPE_NS_TO_SECURE;
+
     do {
         asm volatile(
             __asmeq("%0", "r0")
@@ -333,7 +321,7 @@ static int teec_smc_call(u32 dev_file_id, u32 svc_id, u32 cmd_id,
     mutex_unlock(&smc_lock);
 
     if (ret) {
-        TERR("smc_call returns error ");
+//        TERR("smc_call returns error ");
         /*printk("%s  ", otz_strerror(ret));*/
         goto out;
     }
@@ -348,56 +336,58 @@ out:
     return ret;
 }
 
-///**
-// * @brief
-// */
-//static void otz_client_close_session_for_service(
-//                        void* private_data,
-//                        otzc_service* temp_svc,
-//                        otzc_session *temp_ses)
-//{
-//    int ret_val;
-//    otzc_encode *temp_encode, *enc_context;
-//    otzc_shared_mem *shared_mem, *temp_shared;
-//    u32 dev_file_id = (u32)private_data;
-//
-//    if(!temp_svc || !temp_ses)
-//        return;
-//
-//    TDEBUG("freeing ses_id %d  ",temp_ses->session_id);
-//
-//    ret_val = otz_smc_call(dev_file_id, OTZ_SVC_GLOBAL,
-//        OTZ_GLOBAL_CMD_ID_CLOSE_SESSION, 0, 0,
-//        &temp_svc->service_id,
-//        sizeof(temp_svc->service_id),&temp_ses->session_id,
-//        sizeof(temp_ses->session_id), NULL, NULL, NULL, NULL);
-//
-//    list_del(&temp_ses->head);
-//
-//    if (!list_empty(&temp_ses->encode_list)) {
-//        list_for_each_entry_safe(enc_context, temp_encode,
-//                    &temp_ses->encode_list, head) {
-//            list_del(&enc_context->head);
-//            kfree(enc_context);
-//        }
-//    }
-//
-//    if (!list_empty(&temp_ses->shared_mem_list)) {
-//        list_for_each_entry_safe(shared_mem, temp_shared,
-//                    &temp_ses->shared_mem_list, s_head) {
-//            list_del(&shared_mem->s_head);
-//
-//            if(shared_mem->k_addr)
-//                free_pages((u32)shared_mem->k_addr,
-//                    get_order(ROUND_UP(shared_mem->len, SZ_4K)));
-//
-//            kfree(shared_mem);
-//        }
-//    }
-//
-//    kfree(temp_ses);
-//}
-//
+/**
+ * @brief
+ */
+static void tee_client_close_session_for_service(
+                        void* private_data,
+                        teec_service_t* temp_svc,
+                        teec_session_t *temp_ses)
+{
+    int ret_val;
+    teec_encode_t *temp_encode, *enc_context;
+    teec_shared_mem_t *shared_mem, *temp_shared;
+    u32 dev_file_id = (u32)private_data;
+
+    if(!temp_svc || !temp_ses)
+        return;
+
+    TDEBUG("freeing ses_id %d  ",temp_ses->session_id);
+
+    ret_val = teec_smc_call(dev_file_id, TEE_SVC_GLOBAL,
+        TEE_SVC_GLOBAL_CMD_ID_CLOSE_SESSION, 0, 0,
+        &temp_svc->service_id,
+        sizeof(temp_svc->service_id),&temp_ses->session_id,
+        sizeof(temp_ses->session_id), NULL, NULL, NULL, NULL);
+
+    list_del(&temp_ses->head);
+
+    if (!list_empty(&temp_ses->encode_list)) {
+        list_for_each_entry_safe(enc_context, temp_encode,
+                    &temp_ses->encode_list, head) {
+            list_del(&enc_context->head);
+            kfree(enc_context);
+        }
+    }
+
+    if (!list_empty(&temp_ses->shared_mem_list)) {
+        list_for_each_entry_safe(shared_mem, temp_shared,
+                    &temp_ses->shared_mem_list, s_head) {
+            list_del(&shared_mem->s_head);
+
+            if(shared_mem->k_addr)
+                free_pages((u32)shared_mem->k_addr,
+                    get_order(ROUND_UP(shared_mem->len, SZ_4K)));
+
+            kfree(shared_mem);
+        }
+    }
+
+    kfree(temp_ses);
+
+    TDEBUG("freeing ses_id ok  ");
+}
+
 /**
  * @brief Initialize a service
  *
@@ -437,78 +427,67 @@ clean_prev_malloc:
 return_func:
     return ret_code;
 }
-//
-//
-///**
-// * @brief
-// *
-// * @return
-// */
-//static int otz_client_service_exit(void* private_data)
-//{
-//    otzc_shared_mem* temp_shared_mem;
-//    otzc_shared_mem  *temp_pos;
-//    otzc_dev_file *tem_dev_file, *tem_dev_file_pos;
-//    otzc_session *temp_ses, *temp_ses_pos;
-//    otzc_service* tmp_svc = NULL, *tmp_pos;
-//    u32 dev_file_id;
-//
-//#if 0
-//    list_for_each_entry_safe(temp_shared_mem, temp_pos,
-//                &otzc_shared_mem_head.shared_mem_list , head) {
-//        list_del(&temp_shared_mem->head);
-//
-//        if(temp_shared_mem->k_addr)
-//            free_pages((u32)temp_shared_mem->k_addr,
-//                get_order(ROUND_UP(temp_shared_mem->len, SZ_4K)));
-//
-//        if(temp_shared_mem)
-//            kfree(temp_shared_mem);
-//    }
-//#endif
-//
-//    dev_file_id = (u32)(private_data);
-//    list_for_each_entry_safe(tem_dev_file, tem_dev_file_pos,
-//                &otzc_dev_file_head.dev_file_list, head) {
-//        if(tem_dev_file->dev_file_id == dev_file_id){
-//
-//			list_for_each_entry_safe(temp_shared_mem, temp_pos,
-//						&tem_dev_file->dev_shared_mem_head.shared_mem_list, head){
-//				list_del(&temp_shared_mem->head);
-//
-//				if(temp_shared_mem->k_addr)
-//					free_pages((u32)temp_shared_mem->k_addr,
-//						get_order(ROUND_UP(temp_shared_mem->len, SZ_4K)));
-//
-//				if(temp_shared_mem)
-//					kfree(temp_shared_mem);
-//			}
-//            if (!list_empty(&tem_dev_file->services_list)) {
-//
-//                list_for_each_entry_safe(tmp_svc, tmp_pos,
-//                                        &tem_dev_file->services_list, head) {
-//
-//                    list_for_each_entry_safe(temp_ses, temp_ses_pos,
-//                                    &tmp_svc->sessions_list, head) {
-//                        otz_client_close_session_for_service(private_data,
-//                                                            tmp_svc, temp_ses);
-//                    }
-//                    list_del(&tmp_svc->head);
-//                    kfree(tmp_svc);
-//                }
-//            }
-//
-//            list_del(&tem_dev_file->head);
-//            kfree(tem_dev_file);
-//            break;
-//        }
-//    }
-//
-//    return 0;
-//}
-//
-//
-//
+
+
+/**
+ * @brief
+ *
+ * @return
+ */
+static int tee_client_service_exit(void* private_data)
+{
+    teec_shared_mem_t* temp_shared_mem;
+    teec_shared_mem_t* temp_pos;
+    teec_dev_file_t *tem_dev_file, *tem_dev_file_pos;
+    teec_session_t *temp_ses, *temp_ses_pos;
+    teec_service_t* tmp_svc = NULL, *tmp_pos;
+    u32 dev_file_id;
+
+    TDEBUG("starting from tee_client_service_exit");
+
+    dev_file_id = (u32)(private_data);
+    list_for_each_entry_safe(tem_dev_file, tem_dev_file_pos,
+                &teec_dev_file_head.dev_file_list, head) {
+        if(tem_dev_file->dev_file_id == dev_file_id){
+
+			list_for_each_entry_safe(temp_shared_mem, temp_pos,
+						&tem_dev_file->dev_shared_mem_head.shared_mem_list, head){
+				list_del(&temp_shared_mem->head);
+
+				if(temp_shared_mem->k_addr)
+					free_pages((u32)temp_shared_mem->k_addr,
+						get_order(ROUND_UP(temp_shared_mem->len, SZ_4K)));
+
+				if(temp_shared_mem)
+					kfree(temp_shared_mem);
+			}
+            if (!list_empty(&tem_dev_file->services_list)) {
+
+                list_for_each_entry_safe(tmp_svc, tmp_pos,
+                                        &tem_dev_file->services_list, head) {
+
+                    list_for_each_entry_safe(temp_ses, temp_ses_pos,
+                                    &tmp_svc->sessions_list, head) {
+                        tee_client_close_session_for_service(private_data,
+                                                            tmp_svc, temp_ses);
+                    }
+                    list_del(&tmp_svc->head);
+                    kfree(tmp_svc);
+                }
+            }
+
+            list_del(&tem_dev_file->head);
+            kfree(tem_dev_file);
+            break;
+        }
+    }
+
+    TDEBUG("return from tee_client_service_exit");
+    return 0;
+}
+
+
+
 /**
  * @brief
  *
@@ -568,6 +547,7 @@ static int tee_client_session_open(void* private_data, void* argp)
         sizeof(ses_new->session_id), NULL, &ret_resp_len, NULL, NULL);
 
     if(ret_val != SMC_SUCCESS) {
+    	TERR("Open Session SMC call failed ");
         goto clean_session;
     }
 
@@ -605,61 +585,60 @@ return_func:
 
     return ret_val;
 }
-//
-///**
-// * @brief
-// *
-// * @param argp
-// *
-// * @return
-// */
-//static int otz_client_session_close(void* private_data, void* argp)
-//{
-//    otzc_dev_file *temp_dev_file;
-//    otzc_service *temp_svc;
-//    otzc_session *temp_ses;
-//    int ret_val = 0;
-//    u32 dev_file_id = (u32)private_data;
-//
-//    struct ser_ses_id ses_close;
-//
-//    TDEBUG("inside session close ");
-//
-//    if(copy_from_user(&ses_close, argp, sizeof(ses_close))) {
-//        TERR("copy from user failed  ");
-//        ret_val = -EFAULT;
-//        goto return_func;
-//    }
-//
-//    list_for_each_entry(temp_dev_file, &otzc_dev_file_head.dev_file_list,
-//                                                                    head) {
-//        if(temp_dev_file->dev_file_id == dev_file_id){
-//
-//            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
-//                if( temp_svc->service_id == ses_close.service_id) {
-//
-//                    list_for_each_entry(temp_ses,
-//                                        &temp_svc->sessions_list, head) {
-//                        if(temp_ses->session_id == ses_close.session_id) {
-//                            otz_client_close_session_for_service(private_data,
-//                                                            temp_svc, temp_ses);
-//                            break;
-//                        }
-//                    }
-//                    break;
-//                }
-//            }
-//            break;
-//        }
-//    }
-//
-//    TDEBUG("return from close ");
-//
-//return_func:
-//    return ret_val;
-//}
-//
-//
+
+/**
+ * @brief
+ *
+ * @param argp
+ *
+ * @return
+ */
+static int tee_client_session_close(void* private_data, void* argp)
+{
+    teec_dev_file_t *temp_dev_file;
+    teec_service_t *temp_svc;
+    teec_session_t *temp_ses;
+    int ret_val = 0;
+    u32 dev_file_id = (u32)private_data;
+
+    service_session_id_t ses_close;
+
+    TDEBUG("inside session close ");
+
+    if(copy_from_user(&ses_close, argp, sizeof(ses_close))) {
+        TERR("copy from user failed  ");
+        ret_val = -EFAULT;
+        goto return_func;
+    }
+
+    list_for_each_entry(temp_dev_file, &teec_dev_file_head.dev_file_list,
+                                                                    head) {
+        if(temp_dev_file->dev_file_id == dev_file_id){
+
+            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
+                if( temp_svc->service_id == ses_close.service_id) {
+
+                    list_for_each_entry(temp_ses,
+                                        &temp_svc->sessions_list, head) {
+                        if(temp_ses->session_id == ses_close.session_id) {
+                            tee_client_close_session_for_service(private_data,
+                                                            temp_svc, temp_ses);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+
+return_func:
+    return ret_val;
+}
+
+
 ///**
 // * @brief
 // *
@@ -681,66 +660,67 @@ return_func:
 ///*query secure and do*/
 //    return 0;
 //}
-//
-///**
-// * @brief
-// *
-// * @param filp
-// * @param vma
-// *
-// * @return
-// */
+
+/**
+ * @brief
+ *
+ * @param filp
+ * @param vma
+ *
+ * @return
+ */
 static int tee_driver_mmap(struct file *filp, struct vm_area_struct *vma)
 {
     int ret = 0;
-//    otzc_shared_mem *mem_new;
-//    u32*  alloc_addr;
-//    long length = vma->vm_end - vma->vm_start;
-//
-//    TDEBUG("Inside otz_client mmap ");
-//
-//    alloc_addr =  (void*) __get_free_pages(GFP_KERNEL,
-//                        get_order(ROUND_UP(length, SZ_4K)));
-//    if(!alloc_addr) {
-//        TERR("get free pages failed  ");
-//        ret = -ENOMEM;
-//        goto return_func;
-//    }
-//
-//    TDEBUG("mmap k_addr %p  ",alloc_addr);
-//
-//    if (remap_pfn_range(vma,
-//                vma->vm_start,
-//                ((virt_to_phys(alloc_addr)) >> PAGE_SHIFT),
-//                length,
-//                vma->vm_page_prot)) {
-//        ret = -EAGAIN;
-//        goto return_func;
-//    }
-//
-//    mem_new = kmalloc(sizeof(otzc_shared_mem), GFP_KERNEL);
-//    if(!mem_new) {
-//        TERR("kmalloc failed ");
-//        ret = -ENOMEM;
-//        goto return_func;
-//    }
-//
-//    mem_new->k_addr = alloc_addr;
-//    mem_new->len = length;
-//    mem_new->u_addr = (void*)vma->vm_start;
-//    mem_new->index = mem_new->u_addr;
-//
-//	otzc_dev_file *temp_dev_file;
-//    list_for_each_entry(temp_dev_file, &otzc_dev_file_head.dev_file_list,
-//                                                                    head) {
-//        if(temp_dev_file->dev_file_id == (u32)filp->private_data){
-//			break;
-//		}
-//	}
-//    temp_dev_file->dev_shared_mem_head.shared_mem_cnt++;
-//    list_add_tail( &mem_new->head ,&temp_dev_file->dev_shared_mem_head.shared_mem_list);
-//
-//return_func:
+    teec_dev_file_t *temp_dev_file;
+    teec_shared_mem_t *mem_new;
+    u32*  alloc_addr;
+    long length = vma->vm_end - vma->vm_start;
+
+    TDEBUG("Inside tee_driver_mmap with length %l", length);
+
+    // Get free page address
+    alloc_addr =  (void*) __get_free_pages(GFP_KERNEL, get_order(ROUND_UP(length, SZ_4K)));
+    if(!alloc_addr) {
+        TERR("get free pages failed  ");
+        ret = -ENOMEM;
+        goto return_func;
+    }
+
+    // Remap kernel memory to user space
+    if (remap_pfn_range(vma,
+                vma->vm_start,
+                ((virt_to_phys(alloc_addr)) >> PAGE_SHIFT),
+                length,
+                vma->vm_page_prot)) {
+        ret = -EAGAIN;
+        goto return_func;
+    }
+
+    // Reserve memory for the share memory structure
+    mem_new = kmalloc(sizeof(teec_shared_mem_t), GFP_KERNEL);
+
+    if(!mem_new) {
+        TERR("kmalloc failed ");
+        ret = -ENOMEM;
+        goto return_func;
+    }
+
+    mem_new->k_addr = alloc_addr;
+    mem_new->len = length;
+    mem_new->u_addr = (void*)vma->vm_start;
+    mem_new->index = mem_new->u_addr;
+
+    list_for_each_entry(temp_dev_file, &teec_dev_file_head.dev_file_list,
+                                                                    head) {
+        if(temp_dev_file->dev_file_id == (u32)filp->private_data){
+			break;
+		}
+	}
+    temp_dev_file->dev_shared_mem_head.shared_mem_cnt++;
+    list_add_tail( &mem_new->head ,&temp_dev_file->dev_shared_mem_head.shared_mem_list);
+
+return_func:
     return ret;
 }
 
@@ -774,7 +754,7 @@ static int tee_client_send_cmd(void* private_data, void* argp)
         goto return_func;
     }
 
-    TDEBUG("enc id %d ",enc.encode_id);
+    TDEBUG("enc id 0x%x ",enc.encode_id);
     TDEBUG("dev file id %d ",dev_file_id);
     TDEBUG("ser id %d ",enc.service_id);
     TDEBUG("ses id %d ",enc.session_id);
@@ -836,8 +816,8 @@ static int tee_client_send_cmd(void* private_data, void* argp)
         enc_temp->meta, &ret_resp_len, &enc_temp->wait_data , &send_cmd_lock);
 
     if(ret != SMC_SUCCESS) {
-         TERR("send cmd secure call failed  ");
-         goto return_func;
+    	TERR("send cmd secure call failed  ");
+    	goto return_func;
     }
 
     TDEBUG("smc_success ");
@@ -852,80 +832,92 @@ return_func:
    return ret;
 
 }
-//
-///**
-// * @brief
-// *
-// * @param argp
-// *
-// * @return
-// */
-//static int otz_client_operation_release(void* private_data, void *argp)
-//{
-//    struct otz_client_encode_cmd enc;
-//    otzc_encode *enc_context;
-//    otzc_dev_file *temp_dev_file;
-//    otzc_service *temp_svc;
-//    otzc_session *temp_ses;
-//    int  session_found = 0, enc_found = 0;
-//    int ret =0;
-//    u32 dev_file_id = (u32)private_data;
-//
-//    if(copy_from_user(&enc, argp, sizeof(enc))) {
-//        TERR("copy from user failed  ");
-//        ret = -EFAULT;
-//        goto return_func;
-//    }
-//
-//    list_for_each_entry(temp_dev_file, &otzc_dev_file_head.dev_file_list,
-//                                                                    head) {
-//        if(temp_dev_file->dev_file_id == dev_file_id){
-//
-//            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
-//                if( temp_svc->service_id == enc.service_id) {
-//                    list_for_each_entry(temp_ses, &temp_svc->sessions_list, head) {
-//                        if(temp_ses->session_id == enc.session_id) {
-//                            session_found = 1;
-//                            break;
-//                        }
-//                    }
-//                    break;
-//                }
-//            }
-//            break;
-//        }
-//    }
-//
-//    if(!session_found) {
-//        ret = -EINVAL;
-//        goto return_func;
-//    }
-//
-//    if(enc.encode_id != -1) {
-//        list_for_each_entry(enc_context,&temp_ses->encode_list, head) {
-//            if(enc_context->encode_id == enc.encode_id) {
-//                enc_found = 1;
-//                break;
-//            }
-//        }
-//    }
-//
-//    if(enc_found && enc_context) {
-//       if(enc_context->ker_req_data_addr)
-//         kfree(enc_context->ker_req_data_addr);
-//
-//        if(enc_context->ker_res_data_addr)
-//            kfree(enc_context->ker_res_data_addr);
-//
-//        list_del(&enc_context->head);
-//
-//        kfree(enc_context->meta);
-//        kfree(enc_context);
-//    }
-//return_func:
-//    return ret;
-//}
-//
+
+/**
+ * @brief
+ *
+ * @param argp
+ *
+ * @return
+ */
+static int tee_client_operation_release(void* private_data, void *argp)
+{
+    tee_client_encode_cmd_t enc;
+    teec_encode_t *enc_context;
+    teec_dev_file_t *temp_dev_file;
+    teec_service_t *temp_svc;
+    teec_session_t *temp_ses;
+    int  session_found = 0, enc_found = 0;
+    int ret =0;
+    u32 dev_file_id = (u32)private_data;
+
+    TDEBUG("Inside operation release");
+    if(copy_from_user(&enc, argp, sizeof(enc))) {
+        TERR("copy from user failed  ");
+        ret = -EFAULT;
+        goto return_func;
+    }
+
+    list_for_each_entry(temp_dev_file, &teec_dev_file_head.dev_file_list,
+                                                                    head) {
+        if(temp_dev_file->dev_file_id == dev_file_id){
+
+            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
+                if( temp_svc->service_id == enc.service_id) {
+                    list_for_each_entry(temp_ses, &temp_svc->sessions_list, head) {
+                        if(temp_ses->session_id == enc.session_id) {
+                            session_found = 1;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    if(!session_found) {
+        ret = -EINVAL;
+        goto return_func;
+    }
+
+    if(enc.encode_id != -1) {
+        list_for_each_entry(enc_context,&temp_ses->encode_list, head) {
+            if(enc_context->encode_id == enc.encode_id) {
+                enc_found = 1;
+                break;
+            }
+        }
+    }
+
+    if(enc_found && enc_context) {
+    	if(enc_context->ker_req_data_addr){
+		    TDEBUG("Preparing kfree...");
+
+    		//TODO modified in order to avoid tow different arrays
+    		if(enc_context->ker_res_data_addr == enc_context->ker_req_data_addr){
+    			kfree(enc_context->ker_req_data_addr);
+    			enc_context->ker_res_data_addr = NULL;
+    		} else {
+    			kfree(enc_context->ker_req_data_addr);
+    		}
+    	}
+
+        if(enc_context->ker_res_data_addr)
+            kfree(enc_context->ker_res_data_addr);
+
+        list_del(&enc_context->head);
+
+        kfree(enc_context->meta);
+        kfree(enc_context);
+    }
+
+    TDEBUG("Operation successfully released");
+return_func:
+    return ret;
+}
+
 /**
  * @brief
  *
@@ -1123,99 +1115,131 @@ return_func:
  *
  * @return
  */
-//static int otz_client_encode_array(void* private_data, void* argp)
-//{
-//    struct otz_client_encode_cmd enc;
-//    int ret = 0;
-//    otzc_encode *enc_context;
-//    otzc_session *session;
+static int tee_client_encode_array(void* private_data, void* argp)
+{
+    tee_client_encode_cmd_t enc;
+    int ret = 0;
+    teec_encode_t *enc_context;
+    teec_session_t *session;
+
+    if(copy_from_user(&enc, argp, sizeof(enc))) {
+        TERR("copy from user failed  ");
+        ret = -EFAULT;
+        goto return_func;
+    }
+
+    ret = tee_client_prepare_encode(private_data, &enc, &enc_context, &session);
+
+    if(ret){
+        goto return_func;
+    }
+
+    TDEBUG("enc_id 0x%x ",enc_context->encode_id);
+
+    if(enc.param_type == TEEC_PARAM_IN) {
+        if(!enc_context->ker_req_data_addr) {
+            TDEBUG("allocate req data ");
+            //FIXME Change malloc size
+            enc_context->ker_req_data_addr = kmalloc(TEE_1K_SIZE, GFP_KERNEL);
+            if(!enc_context->ker_req_data_addr) {
+                TERR("kmalloc failed  ");
+                ret = -ENOMEM;
+                goto ret_encode_array;
+             }
+        }
+        TDEBUG("append encode data ");
+
+        if((enc_context->enc_req_offset + enc.len <= TEE_1K_SIZE) &&
+              (enc_context->enc_req_pos < TEE_MAX_REQ_PARAMS)) {
+
+            if(copy_from_user(
+                enc_context->ker_req_data_addr + enc_context->enc_req_offset,
+                enc.data ,
+                enc.len)) {
+                TERR("copy from user failed  ");
+                    ret = -EFAULT;
+                    goto ret_encode_array;
+            }
+
+//            void * userDat = (void __user *)enc.data;
+//            uint8_t * dat =  (uint8_t *)userDat;
+//            uint8_t * kerdat = (uint8_t *)enc_context->ker_req_data_addr;
 //
-//    if(copy_from_user(&enc, argp, sizeof(enc))) {
-//        TERR("copy from user failed  ");
-//        ret = -EFAULT;
-//        goto return_func;
-//    }
-//
-//    ret = otz_client_prepare_encode(private_data, &enc, &enc_context, &session);
-//
-//    if(ret){
-//        goto return_func;
-//    }
-//    TDEBUG("enc_id 0x%x ",enc_context->encode_id);
-//
-//    if(enc.param_type == OTZC_PARAM_IN) {
-//        if(!enc_context->ker_req_data_addr) {
-//            TDEBUG("allocate req data ");
-//            enc_context->ker_req_data_addr = kmalloc(OTZ_1K_SIZE, GFP_KERNEL);
-//            if(!enc_context->ker_req_data_addr) {
-//                TERR("kmalloc failed  ");
-//                ret = -ENOMEM;
-//                goto ret_encode_array;
-//             }
-//        }
-//        TDEBUG("append encode data ");
-//
-//        if((enc_context->enc_req_offset + enc.len <= OTZ_1K_SIZE) &&
-//              (enc_context->enc_req_pos < OTZ_MAX_REQ_PARAMS)) {
-//            if(copy_from_user(
-//                enc_context->ker_req_data_addr + enc_context->enc_req_offset,
-//                enc.data ,
-//                enc.len)) {
-//                TERR("copy from user failed  ");
-//                    ret = -EFAULT;
-//                    goto ret_encode_array;
-//            }
-//            enc_context->enc_req_offset += enc.len;
-//
-//            enc_context->meta[enc_context->enc_req_pos].type = OTZ_ENC_ARRAY;
-//            enc_context->meta[enc_context->enc_req_pos].len = enc.len;
-//            enc_context->enc_req_pos++;
-//        }
-//        else {
-//            ret = -ENOMEM; /* Check this */
-//            goto ret_encode_array;
-//        }
-//    }
-//    else if(enc.param_type == OTZC_PARAM_OUT) {
-//        if(!enc_context->ker_res_data_addr) {
-//            enc_context->ker_res_data_addr = kmalloc(OTZ_1K_SIZE, GFP_KERNEL);
-//            if(!enc_context->ker_res_data_addr) {
-//                TERR("kmalloc failed  ");
-//                ret = -ENOMEM;
-//                goto ret_encode_array;
-//            }
-//        }
-//        if((enc_context->enc_res_offset + enc.len <= OTZ_1K_SIZE) &&
-//            (enc_context->enc_res_pos <
-//            (OTZ_MAX_RES_PARAMS + OTZ_MAX_REQ_PARAMS ))) {
-//            if(enc.data != NULL) {
-//                enc_context->meta[enc_context->enc_res_pos].usr_addr
-//                    = (u32)enc.data;
-//            }
-//            else {
-//                enc_context->meta[enc_context->enc_res_pos].usr_addr = 0;
-//            }
-//            enc_context->enc_res_offset += enc.len;
-//            enc_context->meta[enc_context->enc_res_pos].type = OTZ_ENC_ARRAY;
-//            enc_context->meta[enc_context->enc_res_pos].len = enc.len;
-//
-//            enc_context->enc_res_pos++;
-//        }
-//        else {
-//            ret = -ENOMEM;/* Check this */
-//            goto ret_encode_array;
-//        }
-//    }
-//
-//ret_encode_array:
-//    if(copy_to_user(argp, &enc, sizeof(enc))){
-//        TERR("copy from user failed  ");
-//        return -EFAULT;
-//    }
-//
-//return_func:
-//    return ret;
-//}
+//            TDEBUG("Copy user datas from %x to %x", virt_to_phys(dat), enc_context->ker_req_data_addr);
+//            TDEBUG("Copy user datas, first element on user is: %c",dat[0]);
+//            TDEBUG("Copy user datas, first element on kernel is: %c",*kerdat);
+
+            enc_context->enc_req_offset += enc.len;
+
+            enc_context->meta[enc_context->enc_req_pos].type = TEE_ENC_ARRAY;
+            enc_context->meta[enc_context->enc_req_pos].len = enc.len;
+            enc_context->enc_req_pos++;
+        }
+        else {
+        	TERR("enc->len: %d", enc.len);
+        	TERR("enc_context->dec_res_pos: %d", enc_context->dec_res_pos);
+            TERR("enc_context->dec_offset: %d", enc_context->dec_offset);
+            TERR("enc_context->enc_res_pos: %d", enc_context->enc_res_pos);
+            TERR("enc_context->enc_req_pos: %d", enc_context->enc_req_pos);
+            TERR("enc_context->enc_req_offset: %d", enc_context->enc_req_offset);
+            TERR("enc_context->enc_res_offset: %d", enc_context->enc_res_offset);
+            TERR("Meta[enc_context->dec_res_pos].ret_len: %d", enc_context->meta[enc_context->dec_res_pos].ret_len);
+            TERR("Encode problem with buffer size ");
+            ret = -ENOMEM; /* Check this */
+            goto ret_encode_array;
+        }
+
+    }
+    else if(enc.param_type == TEEC_PARAM_OUT) {
+
+    	TDEBUG("Encoding out TEEC_PARAM_OUT array  ");
+    	//TODO change for prove of same buffer for input output
+    	// This change provokes kfree should be also kept in mind
+    	if(enc_context->ker_req_data_addr) {
+
+    		enc_context->ker_res_data_addr = enc_context->ker_req_data_addr;
+
+    	} else if(!enc_context->ker_res_data_addr) {
+
+    		enc_context->ker_res_data_addr = kmalloc(TEE_1K_SIZE, GFP_KERNEL);
+            if(!enc_context->ker_res_data_addr) {
+                TERR("kmalloc failed  ");
+                ret = -ENOMEM;
+                goto ret_encode_array;
+            }
+        }
+
+        if((enc_context->enc_res_offset + enc.len <= TEE_1K_SIZE) &&
+            (enc_context->enc_res_pos <
+            (TEE_MAX_RES_PARAMS + TEE_MAX_REQ_PARAMS ))) {
+            if(enc.data != NULL) {
+                enc_context->meta[enc_context->enc_res_pos].usr_addr
+                    = (u32)enc.data;
+            }
+            else {
+                enc_context->meta[enc_context->enc_res_pos].usr_addr = 0;
+            }
+            enc_context->enc_res_offset += enc.len;
+            enc_context->meta[enc_context->enc_res_pos].type = TEE_ENC_ARRAY;
+            enc_context->meta[enc_context->enc_res_pos].len = enc.len;
+
+            enc_context->enc_res_pos++;
+        }
+        else {
+            ret = -ENOMEM;/* Check this */
+            goto ret_encode_array;
+        }
+    }
+
+ret_encode_array:
+    if(copy_to_user(argp, &enc, sizeof(enc))){
+        TERR("copy from user failed  ");
+        return -EFAULT;
+    }
+
+return_func:
+    return ret;
+}
 
 /**
  * @brief
@@ -1224,128 +1248,130 @@ return_func:
  *
  * @return
  */
-//static int otz_client_encode_mem_ref(void* private_data, void* argp)
-//{
-//    struct otz_client_encode_cmd enc;
-//    int ret = 0, shared_mem_found = 0;
-//    otzc_encode *enc_context;
-//    otzc_session *session;
-//    otzc_shared_mem* temp_shared_mem;
-//
-//    if(copy_from_user(&enc, argp, sizeof(enc))) {
-//        TERR("copy from user failed  ");
-//        ret = -EFAULT;
-//        goto return_func;
-//    }
-//
-//    ret = otz_client_prepare_encode(private_data, &enc, &enc_context, &session);
-//
-//    if(ret){
-//        goto return_func;
-//    }
-//    TDEBUG("enc_id 0x%x ",enc_context->encode_id);
-//    list_for_each_entry(temp_shared_mem, &session->shared_mem_list,s_head){
-//        if(temp_shared_mem->index == (u32*)enc.data){
-//            shared_mem_found = 1;
-//            break;
-//        }
-//    }
-//
-//    if(!shared_mem_found) {
-//		otzc_dev_file *temp_dev_file;
-//		list_for_each_entry(temp_dev_file, &otzc_dev_file_head.dev_file_list,
-//																		head) {
-//			if(temp_dev_file->dev_file_id == (u32)private_data){
-//				break;
-//			}
-//		}
-//        list_for_each_entry(temp_shared_mem,
-//                    &temp_dev_file->dev_shared_mem_head.shared_mem_list ,head) {
-//			TDEBUG("dev id : %d shrd_mem_index : 0x%x ",
-//					temp_dev_file->dev_file_id, temp_shared_mem->index);
-//            if(temp_shared_mem->index == (u32*)enc.data){
-//                shared_mem_found = 1;
-//                break;
-//            }
-//        }
-//    }
-//
-//    if(!shared_mem_found) {
-//
-//        TERR("shared memory not registered for \
-//this session 0x%x ", session->session_id);
-//        ret = -EINVAL;
-//        goto return_func;
-//    }
-//
-//    if(enc.param_type == OTZC_PARAM_IN) {
-//        if(!enc_context->ker_req_data_addr) {
-//            enc_context->ker_req_data_addr = kmalloc(OTZ_1K_SIZE, GFP_KERNEL);
-//            if(!enc_context->ker_req_data_addr) {
-//                TERR("kmalloc failed  ");
-//                ret = -ENOMEM;
-//                goto ret_encode_array;
-//             }
-//        }
-//
-//        if((enc_context->enc_req_offset + sizeof(u32) <=
-//              OTZ_1K_SIZE) &&
-//              (enc_context->enc_req_pos < OTZ_MAX_REQ_PARAMS)) {
-//            *((u32*)enc_context->ker_req_data_addr +
-//                enc_context->enc_req_offset)
-//                     = virt_to_phys(temp_shared_mem->k_addr+enc.offset);
-//            enc_context->enc_req_offset += sizeof(u32);
-//            enc_context->meta[enc_context->enc_req_pos].usr_addr
-//                              = (u32)(temp_shared_mem->u_addr + enc.offset);
-//            enc_context->meta[enc_context->enc_req_pos].type = OTZ_MEM_REF;
-//            enc_context->meta[enc_context->enc_req_pos].len = enc.len;
-//
-//            enc_context->enc_req_pos++;
-//        }
-//        else {
-//            ret = -ENOMEM; /* Check this */
-//            goto ret_encode_array;
-//        }
-//    }
-//    else if(enc.param_type == OTZC_PARAM_OUT) {
-//        if(!enc_context->ker_res_data_addr) {
-//            enc_context->ker_res_data_addr = kmalloc(OTZ_1K_SIZE, GFP_KERNEL);
-//            if(!enc_context->ker_res_data_addr) {
-//                TERR("kmalloc failed  ");
-//                ret = -ENOMEM;
-//                goto ret_encode_array;
-//            }
-//        }
-//        if((enc_context->enc_res_offset + sizeof(u32)
-//            <= OTZ_1K_SIZE) &&
-//            (enc_context->enc_res_pos <
-//            (OTZ_MAX_RES_PARAMS + OTZ_MAX_REQ_PARAMS ))) {
-//            *((u32*)enc_context->ker_res_data_addr +
-//                    enc_context->enc_res_offset)
-//                        = virt_to_phys(temp_shared_mem->k_addr + enc.offset);
-//            enc_context->enc_res_offset += sizeof(u32);
-//            enc_context->meta[enc_context->enc_res_pos].usr_addr
-//                        = (u32)(temp_shared_mem->u_addr + enc.offset);
-//            enc_context->meta[enc_context->enc_res_pos].type
-//                                                =  OTZ_MEM_REF;
-//            enc_context->meta[enc_context->enc_res_pos].len = enc.len;
-//            enc_context->enc_res_pos++;
-//        }
-//        else {
-//            ret = -ENOMEM; /*Check this */
-//            goto ret_encode_array;
-//        }
-//    }
-//
-//ret_encode_array:
-//    if(copy_to_user(argp, &enc, sizeof(enc))){
-//        TERR("copy from user failed  ");
-//        return -EFAULT;
-//    }
-//
-//return_func:
-//    return ret;
-//}
+static int tee_client_encode_mem_ref(void* private_data, void* argp)
+{
+    tee_client_encode_cmd_t enc;
+    int ret = 0, shared_mem_found = 0;
+    teec_encode_t *enc_context;
+    teec_session_t *session;
+    teec_shared_mem_t* temp_shared_mem;
+    teec_dev_file_t *temp_dev_file;
+
+    // Copy argp which should be the client encode command
+    if(copy_from_user(&enc, argp, sizeof(enc))) {
+        TERR("copy from user failed  ");
+        ret = -EFAULT;
+        goto return_func;
+    }
+
+    ret = tee_client_prepare_encode(private_data, &enc, &enc_context, &session);
+
+    if(ret){
+        goto return_func;
+    }
+    TDEBUG("enc_id 0x%x ",enc_context->encode_id);
+
+    list_for_each_entry(temp_shared_mem, &session->shared_mem_list,s_head){
+        if(temp_shared_mem->index == (u32*)enc.data){
+            shared_mem_found = 1;
+            break;
+        }
+    }
+
+    if(!shared_mem_found) {
+		list_for_each_entry(temp_dev_file, &teec_dev_file_head.dev_file_list,
+																		head) {
+			if(temp_dev_file->dev_file_id == (u32)private_data){
+				break;
+			}
+		}
+        list_for_each_entry(temp_shared_mem,
+                    &temp_dev_file->dev_shared_mem_head.shared_mem_list ,head) {
+			TDEBUG("dev id : %d shrd_mem_index : 0x%x ",
+					temp_dev_file->dev_file_id, temp_shared_mem->index);
+            if(temp_shared_mem->index == (u32*)enc.data){
+                shared_mem_found = 1;
+                break;
+            }
+        }
+    }
+
+    if(!shared_mem_found) {
+
+        TERR("Shared memory not registered for this session 0x%x ", session->session_id);
+        ret = -EINVAL;
+        goto return_func;
+    }
+
+    if(enc.param_type == TEEC_PARAM_IN) {
+        if(!enc_context->ker_req_data_addr) {
+            enc_context->ker_req_data_addr = kmalloc(TEE_1K_SIZE, GFP_KERNEL);
+            if(!enc_context->ker_req_data_addr) {
+                TERR("kmalloc failed  ");
+                ret = -ENOMEM;
+                goto ret_encode_array;
+             }
+        }
+
+        if((enc_context->enc_req_offset + sizeof(u32) <=
+              TEE_1K_SIZE) &&
+              (enc_context->enc_req_pos < TEE_MAX_REQ_PARAMS)) {
+            *((u32*)enc_context->ker_req_data_addr +
+                enc_context->enc_req_offset)
+                     = virt_to_phys(temp_shared_mem->k_addr+enc.offset);
+
+            enc_context->enc_req_offset += sizeof(u32);
+            enc_context->meta[enc_context->enc_req_pos].usr_addr
+                              = (u32)(temp_shared_mem->u_addr + enc.offset);
+            enc_context->meta[enc_context->enc_req_pos].type = TEE_MEM_REF;
+            enc_context->meta[enc_context->enc_req_pos].len = enc.len;
+
+            enc_context->enc_req_pos++;
+        }
+        else {
+            ret = -ENOMEM; /* Check this */
+            goto ret_encode_array;
+        }
+    }
+    else if(enc.param_type == TEEC_PARAM_OUT) {
+        if(!enc_context->ker_res_data_addr) {
+            enc_context->ker_res_data_addr = kmalloc(TEE_1K_SIZE, GFP_KERNEL);
+            if(!enc_context->ker_res_data_addr) {
+                TERR("kmalloc failed  ");
+                ret = -ENOMEM;
+                goto ret_encode_array;
+            }
+        }
+        if((enc_context->enc_res_offset + sizeof(u32)
+            <= TEE_1K_SIZE) &&
+            (enc_context->enc_res_pos <
+            (TEE_MAX_RES_PARAMS + TEE_MAX_REQ_PARAMS ))) {
+            *((u32*)enc_context->ker_res_data_addr +
+                    enc_context->enc_res_offset)
+                        = virt_to_phys(temp_shared_mem->k_addr + enc.offset);
+            enc_context->enc_res_offset += sizeof(u32);
+            enc_context->meta[enc_context->enc_res_pos].usr_addr
+                        = (u32)(temp_shared_mem->u_addr + enc.offset);
+            enc_context->meta[enc_context->enc_res_pos].type
+                                                =  TEE_MEM_REF;
+            enc_context->meta[enc_context->enc_res_pos].len = enc.len;
+            enc_context->enc_res_pos++;
+        }
+        else {
+            ret = -ENOMEM; /*Check this */
+            goto ret_encode_array;
+        }
+    }
+
+ret_encode_array:
+    if(copy_to_user(argp, &enc, sizeof(enc))){
+        TERR("copy from user failed  ");
+        return -EFAULT;
+    }
+
+return_func:
+    return ret;
+}
 
 
 /**
@@ -1356,63 +1382,63 @@ return_func:
  *
  * @return
  */
-//static int otz_client_prepare_decode(void* private_data,
-//                                     struct otz_client_encode_cmd *dec,
-//                                     otzc_encode **pdec_context)
-//{
-//    otzc_dev_file *temp_dev_file;
-//    otzc_service *temp_svc;
-//    otzc_session *temp_ses;
-//    otzc_encode *dec_context;
-//    int  session_found = 0, enc_found = 0;
-//    int ret = 0;
-//    u32 dev_file_id = (u32)private_data;
-//
-//    list_for_each_entry(temp_dev_file, &otzc_dev_file_head.dev_file_list,
-//                                                                    head) {
-//        if(temp_dev_file->dev_file_id == dev_file_id){
-//
-//            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
-//                if( temp_svc->service_id == dec->service_id) {
-//                    list_for_each_entry(temp_ses, &temp_svc->sessions_list,
-//                                                                    head) {
-//                        if(temp_ses->session_id == dec->session_id) {
-//                            TDEBUG("enc cmd ses id %d  ",temp_ses->session_id);
-//                            session_found = 1;
-//                            break;
-//                        }
-//                    }
-//                    break;
-//                }
-//            }
-//            break;
-//        }
-//    }
-//
-//    if(!session_found) {
-//        TERR("session not found ");
-//        ret = -EINVAL;
-//        goto return_func;
-//    }
-//
-//    if(dec->encode_id != -1) {
-//        list_for_each_entry(dec_context,&temp_ses->encode_list, head) {
-//            if(dec_context->encode_id == dec->encode_id){
-//                enc_found = 1;
-//                break;
-//            }
-//        }
-//    }
-//
-//    if(!enc_found) {
-//        ret =  -EINVAL;
-//        goto return_func;
-//    }
-//
-//    *pdec_context = dec_context;
-//return_func:
-//    return ret;
-//}
+static int tee_client_prepare_decode(void* private_data,
+                                     tee_client_encode_cmd_t *dec,
+                                     teec_encode_t **pdec_context)
+{
+    teec_dev_file_t *temp_dev_file;
+    teec_service_t *temp_svc;
+    teec_session_t *temp_ses;
+    teec_encode_t *dec_context;
+    int  session_found = 0, enc_found = 0;
+    int ret = 0;
+    u32 dev_file_id = (u32)private_data;
+
+    list_for_each_entry(temp_dev_file, &teec_dev_file_head.dev_file_list,
+                                                                    head) {
+        if(temp_dev_file->dev_file_id == dev_file_id){
+
+            list_for_each_entry(temp_svc, &temp_dev_file->services_list, head) {
+                if( temp_svc->service_id == dec->service_id) {
+                    list_for_each_entry(temp_ses, &temp_svc->sessions_list,
+                                                                    head) {
+                        if(temp_ses->session_id == dec->session_id) {
+                            TDEBUG("dec cmd ses id %d  ",temp_ses->session_id);
+                            session_found = 1;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    if(!session_found) {
+        TERR("session not found ");
+        ret = -EINVAL;
+        goto return_func;
+    }
+
+    if(dec->encode_id != -1) {
+        list_for_each_entry(dec_context,&temp_ses->encode_list, head) {
+            if(dec_context->encode_id == dec->encode_id){
+                enc_found = 1;
+                break;
+            }
+        }
+    }
+
+    if(!enc_found) {
+        ret =  -EINVAL;
+        goto return_func;
+    }
+
+    *pdec_context = dec_context;
+return_func:
+    return ret;
+}
 
 /**
  * @brief
@@ -1470,93 +1496,101 @@ return_func:
  *
  * @return
  */
-//static int otz_client_decode_array_space(void* private_data, void* argp)
-//{
-//    struct otz_client_encode_cmd dec;
-//    int ret = 0;
-//    otzc_encode *dec_context;
+static int tee_client_decode_array_space(void* private_data, void* argp)
+{
+    tee_client_encode_cmd_t dec;
+    int ret = 0;
+    teec_encode_t *dec_context;
+
+
+    if(copy_from_user(&dec, argp, sizeof(dec))) {
+        TERR("copy from user failed  ");
+        ret = -EFAULT;
+        goto return_func;
+    }
+
+    ret = tee_client_prepare_decode(private_data, &dec, &dec_context);
 //
-//
-//    if(copy_from_user(&dec, argp, sizeof(dec))) {
-//        TERR("copy from user failed  ");
-//        ret = -EFAULT;
-//        goto return_func;
-//    }
-//
-//    ret = otz_client_prepare_decode(private_data, &dec, &dec_context);
-//
-//    if(ret){
-//        goto return_func;
-//    }
-//
-//    if((dec_context->dec_res_pos <= dec_context->enc_res_pos) &&
-//            (dec_context->meta[dec_context->dec_res_pos].type
-//                    == OTZ_ENC_ARRAY)) {
-//        if (dec_context->meta[dec_context->dec_res_pos].len >=
-//                    dec_context->meta[dec_context->dec_res_pos].ret_len) {
-//            if(dec_context->meta[dec_context->dec_res_pos].usr_addr) {
-//                dec.data =
-//                    (void*)dec_context->meta[dec_context->dec_res_pos].usr_addr;
-//            }
-//            if(copy_to_user(dec.data,
-//            dec_context->ker_res_data_addr + dec_context->dec_offset,
-//            dec_context->meta[dec_context->dec_res_pos].ret_len)){
-//                TERR("copy from user failed while copying array ");
-//                ret = -EFAULT;
-//                goto return_func;
-//            }
-//        }
-//        else {
-//            TERR("buffer length is small. Length required %d \
-//and supplied length %d ",
-//            dec_context->meta[dec_context->dec_res_pos].ret_len,
-//            dec_context->meta[dec_context->dec_res_pos].len);
-//            ret = -EFAULT; /* check this */
-//            goto return_func;
-//        }
-//
-//        dec.len = dec_context->meta[dec_context->dec_res_pos].ret_len;
-//        dec_context->dec_offset +=
-//                            dec_context->meta[dec_context->dec_res_pos].len;
-//        dec_context->dec_res_pos++;
-//    }
-//    else if((dec_context->dec_res_pos <= dec_context->enc_res_pos) &&
-//            (dec_context->meta[dec_context->dec_res_pos].type
-//                    == OTZ_MEM_REF)) {
-//        if (dec_context->meta[dec_context->dec_res_pos].len >=
-//                    dec_context->meta[dec_context->dec_res_pos].ret_len) {
-//            dec.data =
-//                (void*)dec_context->meta[dec_context->dec_res_pos].usr_addr;
-//        }
-//        else {
-//            TERR("buffer length is small. Length required %d \
-//and supplied length %d ",
-//            dec_context->meta[dec_context->dec_res_pos].ret_len,
-//            dec_context->meta[dec_context->dec_res_pos].len);
-//            ret = -EFAULT;/* Check this */
-//            goto return_func;
-//        }
-//
-//        dec.len = dec_context->meta[dec_context->dec_res_pos].ret_len;
-//        dec_context->dec_offset += sizeof(u32);
-//        dec_context->dec_res_pos++;
-//    }
-//
-//    else {
-//        TERR("invalid data type or decoder at wrong position ");
-//        ret = -EINVAL;
-//        goto return_func;
-//    }
-//
-//     if(copy_to_user(argp, &dec, sizeof(dec))){
-//        TERR("copy from user failed  ");
-//        ret = -EFAULT;
-//       goto return_func;
-//    }
-//
-//return_func:
-//    return ret;
-//}
+//    TDEBUG("dec_context->dec_res_pos: %d", dec_context->dec_res_pos);
+//    TDEBUG("dec_context->dec_offset: %d", dec_context->dec_offset);
+//    TDEBUG("dec_context->enc_res_pos: %d", dec_context->enc_res_pos);
+//    TDEBUG("dec_context->enc_req_pos: %d", dec_context->enc_req_pos);
+//    TDEBUG("dec_context->enc_req_offset: %d", dec_context->enc_req_offset);
+//    TDEBUG("dec_context->enc_res_offset: %d", dec_context->enc_res_offset);
+//    TDEBUG("Meta[dec_context->dec_res_pos].ret_len: %d", dec_context->meta[dec_context->dec_res_pos].ret_len);
+    if(ret){
+        goto return_func;
+    }
+
+    if((dec_context->dec_res_pos <= dec_context->enc_res_pos) &&
+            (dec_context->meta[dec_context->dec_res_pos].type
+                    == TEE_ENC_ARRAY)) {
+
+        if (dec_context->meta[dec_context->dec_res_pos].len >=
+                    dec_context->meta[dec_context->dec_res_pos].ret_len) {
+            if(dec_context->meta[dec_context->dec_res_pos].usr_addr) {
+                dec.data = (void*)dec_context->meta[dec_context->dec_res_pos].usr_addr;
+            }
+            if(copy_to_user(dec.data,
+            dec_context->ker_res_data_addr + dec_context->dec_offset,
+            dec_context->meta[dec_context->dec_res_pos].ret_len)){
+                TERR("copy from user failed while copying array ");
+                ret = -EFAULT;
+                goto return_func;
+            }
+
+            void * userDat = (void __user *)dec.data;
+            uint8_t * dat =  (uint8_t *)userDat;
+
+            TDEBUG("Copy kernel to user data datas, first element on user is: %c",dat[0]);
+
+        }
+        else {
+            TERR("buffer length is small. Length required %d and supplied length %d ",
+            		dec_context->meta[dec_context->dec_res_pos].ret_len,
+            		dec_context->meta[dec_context->dec_res_pos].len);
+            ret = -EFAULT; /* check this */
+            goto return_func;
+        }
+
+        dec.len = dec_context->meta[dec_context->dec_res_pos].ret_len;
+        dec_context->dec_offset += dec_context->meta[dec_context->dec_res_pos].len;
+        dec_context->dec_res_pos++;
+    }
+    else if((dec_context->dec_res_pos <= dec_context->enc_res_pos) &&
+            (dec_context->meta[dec_context->dec_res_pos].type  == TEE_MEM_REF)) {
+        if (dec_context->meta[dec_context->dec_res_pos].len >=
+                    dec_context->meta[dec_context->dec_res_pos].ret_len) {
+            dec.data = (void*)dec_context->meta[dec_context->dec_res_pos].usr_addr;
+        }
+        else {
+            TERR("buffer length is small. Length required %d and supplied length %d ",
+            		dec_context->meta[dec_context->dec_res_pos].ret_len,
+            		dec_context->meta[dec_context->dec_res_pos].len);
+            ret = -EFAULT;/* Check this */
+            goto return_func;
+        }
+
+        dec.len = dec_context->meta[dec_context->dec_res_pos].ret_len;
+        dec_context->dec_offset += sizeof(u32);
+        dec_context->dec_res_pos++;
+    }
+
+    else {
+        TERR("invalid data type or decoder at wrong position ");
+        ret = -EINVAL;
+        goto return_func;
+    }
+
+     if(copy_to_user(argp, &dec, sizeof(dec))){
+        TERR("copy from user failed  ");
+        ret = -EFAULT;
+       goto return_func;
+    }
+
+return_func:
+    return ret;
+}
 
 /**
  * @brief
@@ -1791,33 +1825,33 @@ static long tee_driver_ioctl(struct file *file, unsigned cmd,
 //            TDEBUG("failed otz_client_decode_cmd: %d", ret);
 //        break;
 //    }
-//    case OTZ_CLIENT_IOCTL_ENC_ARRAY: {
-//        /* Only one client allowed here at a time */
-//        mutex_lock(&encode_cmd_lock);
-//        ret = otz_client_encode_array(file->private_data, argp);
-//        mutex_unlock(&encode_cmd_lock);
-//        if (ret)
-//            TDEBUG("failed otz_client_encode_cmd: %d", ret);
-//        break;
-//    }
-//    case OTZ_CLIENT_IOCTL_DEC_ARRAY_SPACE: {
-//        /* Only one client allowed here at a time */
-//        mutex_lock(&decode_cmd_lock);
-//        ret = otz_client_decode_array_space(file->private_data, argp);
-//        mutex_unlock(&decode_cmd_lock);
-//        if (ret)
-//            TDEBUG("failed otz_client_decode_cmd: %d", ret);
-//        break;
-//    }
-//    case OTZ_CLIENT_IOCTL_ENC_MEM_REF: {
-//        /* Only one client allowed here at a time */
-//        mutex_lock(&encode_cmd_lock);
-//        ret = otz_client_encode_mem_ref(file->private_data, argp);
-//        mutex_unlock(&encode_cmd_lock);
-//        if (ret)
-//            TDEBUG("failed otz_client_encode_cmd: %d", ret);
-//        break;
-//    }
+    case TEE_CLIENT_IOCTL_ENC_ARRAY: {
+        /* Only one client allowed here at a time */
+        mutex_lock(&encode_cmd_lock);
+        ret = tee_client_encode_array(file->private_data, argp);
+        mutex_unlock(&encode_cmd_lock);
+        if (ret)
+            TDEBUG("failed tee_client_encode_cmd: %d", ret);
+        break;
+    }
+    case TEE_CLIENT_IOCTL_DEC_ARRAY_SPACE: {
+        /* Only one client allowed here at a time */
+        mutex_lock(&decode_cmd_lock);
+        ret = tee_client_decode_array_space(file->private_data, argp);
+        mutex_unlock(&decode_cmd_lock);
+        if (ret)
+            TDEBUG("failed tee_client_decode_cmd: %d", ret);
+        break;
+    }
+    case TEE_CLIENT_IOCTL_ENC_MEM_REF: {
+        /* Only one client allowed here at a time */
+        mutex_lock(&encode_cmd_lock);
+        ret = tee_client_encode_mem_ref(file->private_data, argp);
+        mutex_unlock(&encode_cmd_lock);
+        if (ret)
+            TDEBUG("failed tee_client_encode_cmd: %d", ret);
+        break;
+    }
 //    case OTZ_CLIENT_IOCTL_ENC_ARRAY_SPACE: {
 //        /* Only one client allowed here at a time */
 //        mutex_lock(&encode_cmd_lock);
@@ -1845,15 +1879,15 @@ static long tee_driver_ioctl(struct file *file, unsigned cmd,
             TDEBUG("failed tee_client_session_open: %d", ret);
         break;
     }
-//    case OTZ_CLIENT_IOCTL_SES_CLOSE_REQ: {
-//        /* Only one client allowed here at a time */
-//        mutex_lock(&ses_close_lock);
-//        ret = otz_client_session_close(file->private_data, argp);
-//        mutex_unlock(&ses_close_lock);
-//        if (ret)
-//            TDEBUG("failed otz_client_session_close: %d", ret);
-//        break;
-//    }
+    case TEE_CLIENT_IOCTL_SES_CLOSE_REQ: {
+        /* Only one client allowed here at a time */
+        mutex_lock(&ses_close_lock);
+        ret = tee_client_session_close(file->private_data, argp);
+        mutex_unlock(&ses_close_lock);
+        if (ret)
+            TDEBUG("failed tee_client_session_close: %d", ret);
+        break;
+    }
 //    case OTZ_CLIENT_IOCTL_SHR_MEM_ALLOCATE_REQ: {
 //        /* Only one client allowed here at a time */
 //        mutex_lock(&mem_alloc_lock);
@@ -1872,12 +1906,12 @@ static long tee_driver_ioctl(struct file *file, unsigned cmd,
 //            TDEBUG("failed otz_client_shared_mem_free: %d", ret);
 //        break;
 //    }
-//    case OTZ_CLIENT_IOCTL_OPERATION_RELEASE: {
-//        ret = otz_client_operation_release(file->private_data, argp);
-//        if (ret)
-//            TDEBUG("failed operation release: %d", ret);
-//        break;
-//    }
+    case TEE_CLIENT_IOCTL_OPERATION_RELEASE: {
+        ret = tee_client_operation_release(file->private_data, argp);
+        if (ret)
+            TDEBUG("failed operation release: %d", ret);
+        break;
+    }
     default:
         return -EINVAL;
     }
@@ -1942,14 +1976,13 @@ ret_func:
  */
 static int tee_driver_release(struct inode *inode, struct file *file)
 {
-//        u32 dev_file_id = (u32)file->private_data;
-//
-//
-//    TDEBUG("otz_client_release ");
-//    otz_client_service_exit(file->private_data);
-//    if(list_empty(&otzc_dev_file_head.dev_file_list)){
-//
-//    }
+	u32 dev_file_id = (u32)file->private_data;
+
+    TDEBUG("tee_client_release ");
+    tee_client_service_exit(file->private_data);
+    if(list_empty(&teec_dev_file_head.dev_file_list)){
+    	//TODO clean list
+    }
     return 0;
 }
 

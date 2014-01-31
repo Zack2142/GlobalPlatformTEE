@@ -20,6 +20,8 @@
  * Test App for check the library and driver functionality
  */
 #include <stdio.h>
+#include <string.h>
+
 #include <tee_client_api.h>
 #include <driver/tee_client_driver_common.h>
 
@@ -31,7 +33,7 @@ int main(int argc, char* argv[])
 	TEEC_SharedMemory shareMem;
 	TEEC_Result result;
 
-	printf("Utilizando el driver \n");
+	printf("Test-tee: Using TEE API and Driver \n");
 	TEEC_UUID svc_id = TEE_SVC_DRM;
 
 	uint32_t len;
@@ -59,7 +61,7 @@ int main(int argc, char* argv[])
 	}
 
 
-	printf("session id 0x%x\n", session.imp.session_id);
+	printf("Test-tee:  session id 0x%x\n", session.imp.session_id);
 
 	shareMem.size = 10000;
 	shareMem.flags = TEEC_MEM_INPUT | TEEC_MEM_OUTPUT ;
@@ -69,33 +71,42 @@ int main(int argc, char* argv[])
 			&shareMem);
 
 	if(result != TEEC_SUCCESS) {
-			goto cleanup_2;
+			goto cleanup_3;
 	}
 
-	// Configure operation fields
-	operation.started 	= 1;				// No cancel operation
-	operation.paramTypes= TEEC_PARAM_TYPES( // Type of parameters
-			TEEC_NONE,
-			TEEC_NONE,
-			TEEC_NONE,
-			TEEC_NONE);
+	printf("Test-tee: Allocated shared memory on %p\n", shareMem.buffer);
+	strcpy(shareMem.buffer,"test global platform client api: zero copy testing - inout");
+	len = strlen("test global platform client api: zero copy testing - inout") + 1;
 
-//	TEEC_Parameter param;
-//
-//	param.tmpref.buffer= (void*)pkt->data;
-//	param.tmpref.size 	= pkt->size;
+	operation.paramTypes = TEEC_PARAM_TYPES(
+			TEEC_MEMREF_PARTIAL_INOUT,
+	    	TEEC_NONE,
+	        TEEC_NONE,
+	        TEEC_NONE);
+
+	operation.started = 1;
+	operation.params[0].memref.parent = &shareMem;
+	operation.params[0].memref.offset = 0;
+	operation.params[0].memref.size = len;
+
+	printf("Content: %s\n", (char * )operation.params[0].memref.parent->buffer);
 
 	result = TEEC_InvokeCommand(
 			&session,
 			TEE_SVC_DRM_CMD_ID_DECRYPT_PACK,
 			&operation,
 			NULL);
+
 	if (result != TEEC_SUCCESS)
 	{
-		goto cleanup_3;
+		goto cleanup_4;
 	}
 
-	printf("command success\n");
+	printf("New content: %s\n", (char * )operation.params[0].memref.parent->buffer);
+	printf("Test-tee: Test success\n");
+
+	cleanup_4:
+	TEEC_ReleaseSharedMemory(&shareMem);
 	cleanup_3:
 	TEEC_CloseSession(&session);
 	cleanup_2:

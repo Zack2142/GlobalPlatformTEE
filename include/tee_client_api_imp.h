@@ -25,7 +25,13 @@
 #include <stdint.h>
 #include <list.h>
 
-#define TEE_DEBUG
+#undef TDEBUG
+#ifdef TEE_LIB_DEBUG
+#define TDEBUG(msg, args...) printf("TEE-API: %s - " msg "\n",\
+		__func__,  ## args)
+#else
+#define TDEBUG(msg, args...)
+#endif
 
 #define TYPE_UINT_DEFINED 1
 
@@ -82,5 +88,6 @@ enum tee_shared_mem_flags {
 /*! Invalid flag */
     TEE_MEM_SERVICE_UNDEFINED
 };
+
 
 #endif //__TEE_CLIENT_API_IMP_H_

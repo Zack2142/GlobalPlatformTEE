@@ -39,17 +39,17 @@
 #define TEE_CLIENT_FULL_PATH_DEV_NAME "/dev/tee"
 
 
-#define CALL_TEE_API		1 	// Value for r0 when smc
+#define CALL_TEE_API	1 	// Value for r0 when smc
 
 /*
  * Value for r2 when calling smc from client or server TEE API
  */
 enum tee_cmd_type {
-	TEE_CMD_TYPE_INVALID = 0,
+	TEE_CMD_TYPE_INVALID 		= 0,
 	TEE_CMD_TYPE_NS_TO_SECURE,
 	TEE_CMD_TYPE_SECURE_TO_NS,
 	TEE_CMD_TYPE_SECURE_TO_SECURE,
-	TEE_CMD_TYPE_MAX  = 0x7FFFFFFF
+	TEE_CMD_TYPE_MAX  			= 0x7FFFFFFF
 };
 
 /**
@@ -86,16 +86,16 @@ typedef struct tee_smc_cmd_t {
  * @brief Encode command structure
  */
 typedef struct tee_client_encode_cmd_t {
-    unsigned int len;
-    void* data;
-    int   offset;
-    int   flags;
-    int   param_type;
+    unsigned int 	len;
+    void* 			data;
+    int   			offset;
+    int   			flags;
+    int   			param_type;
 
-    int encode_id;
-    int service_id;
-    int session_id;
-    unsigned int cmd_id;
+    int 			encode_id;
+    int 			service_id;
+    int 			session_id;
+    unsigned int 	cmd_id;
 } tee_client_encode_cmd_t;
 
 /**
@@ -113,19 +113,20 @@ enum tee_global_cmd_id {
 };
 
 enum tee_drm_cmd_id {
-	TEE_SVC_DRM_CMD_ID_INVALID = 0x0,
-	TEE_SVC_DRM = 0x00000100,
-	TEE_SVC_DRM_CMD_ID_DECRYPT_PACK = 0x00000101
+	TEE_SVC_DRM_CMD_ID_INVALID 		= 0x0,
+	TEE_SVC_DRM 					= 0x00000100,
+	TEE_SVC_DRM_CMD_ID_DECRYPT_PACK = 0x00000101,
+	TEE_SVC_DRM_CMD_ID_GET_LICENCE	= 0x00000102
 };
 
 /**
  * @brief Metadata used for encoding/decoding
  */
 struct teec_encode_meta {
-    int type;
-    int len;
-    unsigned int usr_addr;
-    int ret_len;
+    int 			type;
+    int 			len;
+    unsigned int 	usr_addr;
+    int 			ret_len;
 };
 
 /**
@@ -140,9 +141,9 @@ typedef struct service_session_id_t{
  * @brief Shared memory information for the session
  */
 typedef struct tee_session_shared_mem_info_t{
-    int service_id;
-    int session_id;
-    unsigned int user_mem_addr;
+    int 			service_id;
+    int 			session_id;
+    unsigned int 	user_mem_addr;
 }tee_session_shared_mem_info_t;
 
 

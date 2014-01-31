@@ -27,10 +27,11 @@
 #define TEE_DRIVER_DEV "tee"
 
 
-#define TEE_1K_SIZE 1024
+#define TEE_1K_SIZE 1024 * 1024
 #define TEE_MAX_REQ_PARAMS  12
 #define TEE_MAX_RES_PARAMS  4
 
+#define ROUND_UP(N, S) ((((N) + (S) - 1) / (S)) * (S))
 
 #undef TDEBUG
 #ifdef TEE_DRIVER_DEBUG
@@ -150,5 +151,18 @@ typedef struct teec_encode_t{
     teec_encode_meta_t *meta;
 } teec_encode_t;
 
+/**
+ * @brief
+ */
+typedef struct teec_shared_mem_t{
 
+    struct list_head head;
+    struct list_head s_head;
+
+    void* index;
+
+    void* k_addr;
+    void* u_addr;
+    u32  len;
+} teec_shared_mem_t;
 #endif
