@@ -12,7 +12,7 @@ endif
 target 	= ../build/test-tee
 source 	= test-tee.c
 objs 		= test-tee.o
-deploy_target_dir := /media/f33f1c20-d63a-4af4-bf4d-d14fd4a3b7d2/usr/bin
+deploy_target_dir :=  ${DEPLOY_DIR}usr/bin
 
 lib_dir	= ../build/
 

@@ -27,6 +27,7 @@
 #define TEE_DRIVER_DEV "tee"
 
 
+#define TEE_1M_SIZE 1024 * 1024
 #define TEE_1K_SIZE 1024 * 1024
 #define TEE_MAX_REQ_PARAMS  12
 #define TEE_MAX_RES_PARAMS  4

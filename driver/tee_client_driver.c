@@ -40,7 +40,10 @@
 //#include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <asm/cacheflush.h>
-//
+#include <linux/time.h>					// For statistics getnscurrenttime
+#include <linux/mm.h>					// For get_user_page
+#include <linux/highmem.h>					// For kmap
+
 //
 /* Driver dependent includes*/
 #include <driver/tee_client_driver_common.h>
@@ -128,7 +131,16 @@ static DEFINE_MUTEX(ses_open_lock);
  * @param ses_close_lock
  */
 static DEFINE_MUTEX(ses_close_lock);
-//
+
+//TODO Statistics staff
+#ifdef STATISTICS_ON
+
+static long array_encode_cont;
+static long average_copy_from_user_time;
+static long average_data_encode_size;
+static long long total_copy_from_user_time;
+static long long total_data_encode_size;
+#endif
 ///**
 // * @brief
 // *
@@ -482,7 +494,21 @@ static int tee_client_service_exit(void* private_data)
         }
     }
 
-    TDEBUG("return from tee_client_service_exit");
+#ifdef STATISTICS_ON
+    // Calculate average statistics
+    average_copy_from_user_time = total_copy_from_user_time / (array_encode_cont - 3);
+    average_data_encode_size = total_data_encode_size / (array_encode_cont - 3);
+    TDEBUG("Total copies count: %ld", (array_encode_cont - 3));
+    TDEBUG("Average copy from user time: %ld", average_copy_from_user_time);
+    TDEBUG("Average pkg data size: %ld", average_data_encode_size);
+
+    average_copy_from_user_time = 0;
+    average_data_encode_size = 0;
+    array_encode_cont = 0;
+    total_copy_from_user_time = 0;
+    total_data_encode_size = 0;
+
+#endif
     return 0;
 }
 
@@ -677,7 +703,7 @@ static int tee_driver_mmap(struct file *filp, struct vm_area_struct *vma)
     u32*  alloc_addr;
     long length = vma->vm_end - vma->vm_start;
 
-    TDEBUG("Inside tee_driver_mmap with length %l", length);
+    TDEBUG("Inside tee_driver_mmap with length %ld", length);
 
     // Get free page address
     alloc_addr =  (void*) __get_free_pages(GFP_KERNEL, get_order(ROUND_UP(length, SZ_4K)));
@@ -1122,6 +1148,10 @@ static int tee_client_encode_array(void* private_data, void* argp)
     teec_encode_t *enc_context;
     teec_session_t *session;
 
+#ifdef STATISTICS_ON
+    struct timespec time_spec1, time_spec2;
+#endif
+
     if(copy_from_user(&enc, argp, sizeof(enc))) {
         TERR("copy from user failed  ");
         ret = -EFAULT;
@@ -1152,6 +1182,16 @@ static int tee_client_encode_array(void* private_data, void* argp)
         if((enc_context->enc_req_offset + enc.len <= TEE_1K_SIZE) &&
               (enc_context->enc_req_pos < TEE_MAX_REQ_PARAMS)) {
 
+#ifdef STATISTICS_ON
+
+        	//TODO Only for FFPLAY statistics control
+        	if (array_encode_cont >= 3) {
+        		total_data_encode_size += enc.len;
+        		getnstimeofday(&time_spec1);
+        	}
+
+#endif
+
             if(copy_from_user(
                 enc_context->ker_req_data_addr + enc_context->enc_req_offset,
                 enc.data ,
@@ -1160,6 +1200,19 @@ static int tee_client_encode_array(void* private_data, void* argp)
                     ret = -EFAULT;
                     goto ret_encode_array;
             }
+
+#ifdef STATISTICS_ON
+            getnstimeofday(&time_spec2);
+            TDEBUG("read took: %ld nanoseconds for pkg of: %ld bytes",
+                (time_spec2.tv_sec  - time_spec1.tv_sec) * 1000000000 + (time_spec2.tv_nsec - time_spec1.tv_nsec),
+                enc.len);
+
+            if (array_encode_cont >= 3) {
+            	total_copy_from_user_time += time_spec2.tv_nsec - time_spec1.tv_nsec;
+            }
+
+            array_encode_cont++;
+#endif
 
 //            void * userDat = (void __user *)enc.data;
 //            uint8_t * dat =  (uint8_t *)userDat;
@@ -1176,17 +1229,67 @@ static int tee_client_encode_array(void* private_data, void* argp)
             enc_context->enc_req_pos++;
         }
         else {
-        	TERR("enc->len: %d", enc.len);
-        	TERR("enc_context->dec_res_pos: %d", enc_context->dec_res_pos);
-            TERR("enc_context->dec_offset: %d", enc_context->dec_offset);
-            TERR("enc_context->enc_res_pos: %d", enc_context->enc_res_pos);
-            TERR("enc_context->enc_req_pos: %d", enc_context->enc_req_pos);
-            TERR("enc_context->enc_req_offset: %d", enc_context->enc_req_offset);
-            TERR("enc_context->enc_res_offset: %d", enc_context->enc_res_offset);
-            TERR("Meta[enc_context->dec_res_pos].ret_len: %d", enc_context->meta[enc_context->dec_res_pos].ret_len);
-            TERR("Encode problem with buffer size ");
-            ret = -ENOMEM; /* Check this */
-            goto ret_encode_array;
+
+        	void *kernel_black_addr = NULL;
+//        	int page_index = 0;
+//        		page_ctx_t *page_context;
+        	int nr_pages = 0;
+        	unsigned long start_page;
+        	struct page *pages;
+        	char ** aux;
+
+        	/* Determine the number of pages being used for this link */
+        	nr_pages = (((unsigned long)(enc.data) & ~PAGE_MASK)
+        			+ enc.len + ~PAGE_MASK) >> PAGE_SHIFT;
+
+        	TDEBUG("Number of pages: %d  ", nr_pages);
+
+        	start_page = (unsigned long)(enc.data) & PAGE_MASK;
+
+        	TDEBUG("Start page: %ld", start_page);
+
+        	// Map user pages
+        	down_read(&current->mm->mmap_sem);
+        	ret = get_user_pages(current, current->mm,
+        					start_page,
+        					nr_pages,
+        					WRITE,
+        					0, // noforce
+        					&pages,
+        					NULL);
+        	up_read(&current->mm->mmap_sem);
+
+        	if (ret < nr_pages) {
+        		TERR("Encoding out TEEC_PARAM_OUT array  ");
+        		ret = -ENOMEM; /* Check this */
+        		goto ret_encode_array;
+        	}
+
+        	TDEBUG("User pages got on %p", pages);
+        	TDEBUG("User pages flags: %d, count: %d, private: %ld and mapping on: %p",
+        			pages->flags,
+        			pages->_count,
+        			pages->private,
+        			pages->mapping);
+
+        	// Map the page into kernel space
+        	aux[0] = kmap_atomic(pages , KM_USER0);
+
+        	TDEBUG("Get page address %p ",aux[0]);
+//        	aux = enc_context->ker_req_data_addr + enc_context->enc_req_offset;
+//        	aux[0] = kmap(pages);
+//
+//        	TDEBUG("User pages got and mapped on ");
+
+//        	TDEBUG("User pages got and mapped on %p", aux[0]);
+//        	TDEBUG("Content of first bytes is %c-%c-%c-%c", *aux[0],*aux[0]+1,*aux[0]+2,*aux[0]+3);
+//        	enc_context->enc_req_offset += sizeof(void*);
+//
+//        	enc_context->meta[enc_context->enc_req_pos].type = TEE_ENC_ARRAY;
+//        	enc_context->meta[enc_context->enc_req_pos].len = enc.len;
+//        	enc_context->enc_req_pos++;
+        	ret = -ENOMEM; /* Check this */
+        	goto ret_encode_array;
         }
 
     }
@@ -1538,12 +1641,6 @@ static int tee_client_decode_array_space(void* private_data, void* argp)
                 ret = -EFAULT;
                 goto return_func;
             }
-
-            void * userDat = (void __user *)dec.data;
-            uint8_t * dat =  (uint8_t *)userDat;
-
-            TDEBUG("Copy kernel to user data datas, first element on user is: %c",dat[0]);
-
         }
         else {
             TERR("buffer length is small. Length required %d and supplied length %d ",
@@ -2025,6 +2122,15 @@ static int __init tee_driver_init(void)
 {
     int ret_code = 0;
     struct device *class_dev;
+
+#ifdef STATISTICS_ON
+    // Initilize statistics variables
+    array_encode_cont = 0;
+    average_copy_from_user_time = 0;
+    average_data_encode_size = 0;
+    total_copy_from_user_time = 0;
+    total_data_encode_size = 0;
+#endif
 
     TDEBUG("Init tee driver");
     tee_driver_smc_init();

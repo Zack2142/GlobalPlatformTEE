@@ -14,7 +14,7 @@ endif
 target 	= ../build/libteeclientapi.so
 source 	= tee_client_api.c
 objs 		= tee_client_api.o
-deploy_target_dir := /media/f33f1c20-d63a-4af4-bf4d-d14fd4a3b7d2/usr/lib/
+deploy_target_dir :=  ${DEPLOY_DIR}usr/lib/
 
 deploy: build
 	@cp -ap ${target} ${deploy_target_dir} 

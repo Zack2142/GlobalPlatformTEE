@@ -10,6 +10,7 @@ export INCLUDE_DIR=${BASE_DIR}/include
 export LIB_SOURCE_DIR=${BASE_DIR}/tee_client_api
 export KERNEL_SOURCE=/home/pablo/dev/git/linux
 export APP_SOURCE_DIR=${BASE_DIR}/app
+export DEPLOY_DIR=/media/9a195aaa-13bd-4b47-a74c-e77c09256265/
 
 deploy: clean all
 	${MAKE} -C ${DRIVER_SOURCE_DIR} deploy

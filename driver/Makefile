@@ -5,17 +5,18 @@ obj-m := tee_client_driver.o
 ccflags-y := -I${INCLUDE_DIR}
 
 target 	= ${BUILD_DIR}/tee_client_driver.ko
-deploy_target_dir := /media/f33f1c20-d63a-4af4-bf4d-d14fd4a3b7d2/lib/modules/tee-driver-1.0.0/
+deploy_target_dir :=  ${DEPLOY_DIR}lib/modules/tee-driver-1.0.0/
 source = ${DRIVER_SOURCE_DIR}/tee_client_driver.c
 
 deploy: build 
+	@mkdir -p ${deploy_target_dir}
 	@cp -ap ${target} ${deploy_target_dir}
 	
 build: ${target}
 
 #KCPPFLAGS="-DTEE_DRIVER_DEBUG" 
 ${target}: ${source}
-	KCPPFLAGS="-DTEE_DRIVER_DEBUG"  ${MAKE} -C ${KERNEL_SOURCE} O=build SUBDIRS=${DRIVER_SOURCE_DIR} modules
+	${MAKE} -C ${KERNEL_SOURCE} O=build SUBDIRS=${DRIVER_SOURCE_DIR} modules
 	@mv *.o ${BUILD_DIR}
 	@mv *.ko ${BUILD_DIR}
 	@mv *.symvers ${BUILD_DIR}

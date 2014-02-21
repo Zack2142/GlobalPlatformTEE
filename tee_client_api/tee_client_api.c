@@ -39,7 +39,7 @@
 */
 static const char* TEEC_service_errorlist[] =
 {
-    "Service Success",
+    "Service  Success",
     "Service Pending",
     "Service Interrupted",
     "Service Error",
@@ -500,6 +500,9 @@ TEEC_Result TEEC_InvokeCommand(
         printf(
             "TEEC_InvokeCommand : cancellation support not yet implemented\n");
         return TEEC_ERROR_NOT_IMPLEMENTED;
+    } else if (!operation){
+    	printf("TEEC_InvokeCommand : NULL Operation field is not permitted\n");
+    	        return TEEC_ERROR_NOT_SUPPORTED;
     }
 
     session->imp.operation_cnt++;
