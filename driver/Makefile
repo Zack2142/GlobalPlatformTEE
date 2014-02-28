@@ -16,7 +16,7 @@ build: ${target}
 
 #KCPPFLAGS="-DTEE_DRIVER_DEBUG" 
 ${target}: ${source}
-	${MAKE} -C ${KERNEL_SOURCE} O=build SUBDIRS=${DRIVER_SOURCE_DIR} modules
+	${MAKE} -C ${KERNEL_SOURCE} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} modules
 	@mv *.o ${BUILD_DIR}
 	@mv *.ko ${BUILD_DIR}
 	@mv *.symvers ${BUILD_DIR}
@@ -26,7 +26,7 @@ ${target}: ${source}
 	@chown -R pablo:pablo ${DRIVER_SOURCE_DIR}/
 	
 clean:
-	${MAKE} -C ${KERNEL_SOURCE} O=build SUBDIRS=${DRIVER_SOURCE_DIR} clean
+	${MAKE} -C ${KERNEL_SOURCE} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} clean
 	echo ${BUILD_DIR}
 	@rm -f ${BUILD_DIR}/*
 	
