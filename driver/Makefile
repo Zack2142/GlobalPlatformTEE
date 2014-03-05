@@ -16,17 +16,19 @@ build: ${target}
 
 #KCPPFLAGS="-DTEE_DRIVER_DEBUG" 
 ${target}: ${source}
-	${MAKE} -C ${KERNEL_SOURCE} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} modules
+	KCPPFLAGS="-DTEE_DRIVER_DEBUG" ${MAKE} -C ${KERNEL_SOURCE_DIR} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} modules
 	@mv *.o ${BUILD_DIR}
 	@mv *.ko ${BUILD_DIR}
 	@mv *.symvers ${BUILD_DIR}
 	@mv *.order ${BUILD_DIR}
 	@mv *.mod.c ${BUILD_DIR}
+ifeq ($(USER),root)
 	@chown -R pablo:pablo ${BUILD_DIR}/
 	@chown -R pablo:pablo ${DRIVER_SOURCE_DIR}/
-	
+endif
+
 clean:
-	${MAKE} -C ${KERNEL_SOURCE} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} clean
+	${MAKE} -C ${KERNEL_SOURCE_DIR} O=${KERNEL_BUILD_DIR} SUBDIRS=${DRIVER_SOURCE_DIR} clean
 	echo ${BUILD_DIR}
 	@rm -f ${BUILD_DIR}/*
 	

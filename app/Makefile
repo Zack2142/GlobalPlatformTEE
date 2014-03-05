@@ -20,6 +20,9 @@ deploy: build
 	@cp -ap ${target} ${deploy_target_dir} 
 	
 build: ${target}
+ifeq ($(USER),root)
+	@chown -R pablo:pablo ${target}
+endif
 
 ${target}: ${source}
 	${gcc} ${CFLAGS} -I${INCLUDE_DIR} -L${lib_dir} -o ${target} ${source} -Bdynamic -lteeclientapi
